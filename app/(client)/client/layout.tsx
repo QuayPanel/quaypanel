@@ -10,10 +10,12 @@ import {
   Handshake,
 } from "lucide-react";
 import { getSessionUser } from "@/src/auth/session";
+import { BrandMark } from "@/components/brand-mark";
 import { Button } from "@/components/ui/button";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { AccountMenu } from "@/components/account-menu";
 import { SiteFooter } from "@/components/site-footer";
+import { getSetting } from "@/src/domains/settings/service";
 
 const links = [
   { href: "/client", label: "Dashboard", icon: LayoutDashboard },
@@ -35,11 +37,23 @@ export default async function ClientLayout({
     redirect("/login");
   }
 
+  const [brandName, logoUrl, logoDisplay] = await Promise.all([
+    getSetting("brand.name", "QuayPanel").then(String),
+    getSetting("brand.logoUrl", "").then((v) => String(v ?? "").trim()),
+    getSetting("theme.logoDisplay", "logo_name").then(String),
+  ]);
+
   return (
     <div className="min-h-screen md:grid md:grid-cols-[220px_1fr]">
       <aside className="border-r bg-card">
-        <div className="flex h-16 items-center border-b px-5 text-lg font-semibold">
-          QuayPanel
+        <div className="flex h-16 items-center border-b px-5">
+          <BrandMark
+            name={brandName}
+            logoUrl={logoUrl}
+            logoDisplay={logoDisplay}
+            href="/client"
+            size="sm"
+          />
         </div>
         <nav className="flex flex-col gap-1 p-3">
           {links.map((link) => (

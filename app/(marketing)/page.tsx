@@ -1,14 +1,24 @@
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
+import { BrandMark } from "@/components/brand-mark";
 import { FadeIn } from "@/components/motion";
 import { StoreHeader } from "@/components/store-header";
 import { SiteFooter } from "@/components/site-footer";
+import { getSetting } from "@/src/domains/settings/service";
 
-export default function MarketingPage() {
+export default async function MarketingPage() {
+  const [brandName, logoUrl, logoDisplay] = await Promise.all([
+    getSetting("brand.name", "QuayPanel").then(String),
+    getSetting("brand.logoUrl", "").then((v) => String(v ?? "").trim()),
+    getSetting("theme.logoDisplay", "logo_name").then(String),
+  ]);
+
+  const brand = { name: brandName, logoUrl, logoDisplay };
+
   return (
     <div className="flex min-h-screen flex-col">
       <main className="hero-grid flex-1">
-        <StoreHeader />
+        <StoreHeader brand={brand} />
 
         <section className="mx-auto flex min-h-[70vh] w-full max-w-6xl flex-col justify-center px-6 pb-24">
           <FadeIn>
@@ -17,8 +27,15 @@ export default function MarketingPage() {
             </p>
           </FadeIn>
           <FadeIn delay={0.08}>
-            <h1 className="max-w-3xl text-5xl font-semibold leading-[1.05] tracking-tight text-foreground md:text-7xl">
-              QuayPanel
+            <h1 className="max-w-4xl leading-[1.05] text-foreground">
+              <BrandMark
+                name={brandName}
+                logoUrl={logoUrl}
+                logoDisplay={logoDisplay}
+                size="hero"
+                asSpan
+                className="flex-wrap"
+              />
             </h1>
           </FadeIn>
           <FadeIn delay={0.16}>

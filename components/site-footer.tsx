@@ -1,16 +1,19 @@
 import Link from "next/link";
+import { BrandMark } from "@/components/brand-mark";
 import { listCategories } from "@/src/domains/categories/service";
 import { getSetting } from "@/src/domains/settings/service";
 
 const QUAYPANEL_GITHUB = "https://github.com/QuayPanel";
 
 export async function SiteFooter() {
-  const [brandName, logoUrl, termsUrl, categories] = await Promise.all([
-    getSetting("brand.name", "QuayPanel").then(String),
-    getSetting("brand.logoUrl", "").then((v) => String(v ?? "").trim()),
-    getSetting("legal.termsUrl", "").then((v) => String(v ?? "").trim()),
-    listCategories(true),
-  ]);
+  const [brandName, logoUrl, logoDisplay, termsUrl, categories] =
+    await Promise.all([
+      getSetting("brand.name", "QuayPanel").then(String),
+      getSetting("brand.logoUrl", "").then((v) => String(v ?? "").trim()),
+      getSetting("theme.logoDisplay", "logo_name").then(String),
+      getSetting("legal.termsUrl", "").then((v) => String(v ?? "").trim()),
+      listCategories(true),
+    ]);
 
   const roots = categories.filter((c) => !c.parentId).slice(0, 8);
 
@@ -18,20 +21,12 @@ export async function SiteFooter() {
     <footer className="border-t bg-card">
       <div className="mx-auto grid w-full max-w-6xl gap-10 px-6 py-12 sm:grid-cols-2 lg:grid-cols-4">
         <div className="space-y-3">
-          <Link href="/" className="inline-flex items-center gap-2">
-            {logoUrl ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img
-                src={logoUrl}
-                alt={brandName}
-                className="h-8 w-auto max-w-[160px] object-contain"
-              />
-            ) : (
-              <span className="text-lg font-semibold tracking-tight">
-                {brandName}
-              </span>
-            )}
-          </Link>
+          <BrandMark
+            name={brandName}
+            logoUrl={logoUrl}
+            logoDisplay={logoDisplay}
+            size="md"
+          />
           <p className="text-sm text-muted-foreground">
             Billing, invoices, and services — powered by open source.
           </p>

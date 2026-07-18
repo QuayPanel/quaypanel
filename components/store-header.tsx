@@ -5,6 +5,7 @@ import { useEffect, useMemo, useState } from "react";
 import { ChevronDown, ShoppingBag, ShoppingCart } from "lucide-react";
 import { useApiQuery } from "@/components/api";
 import { AccountMenu } from "@/components/account-menu";
+import { BrandMark } from "@/components/brand-mark";
 import { Button } from "@/components/ui/button";
 import { ThemeToggle } from "@/components/theme-toggle";
 import {
@@ -28,12 +29,33 @@ type Me = {
   role: string;
 } | null;
 
-export function StoreHeader() {
+type PublicBrand = {
+  "brand.name"?: string;
+  "brand.logoUrl"?: string;
+  "theme.logoDisplay"?: string;
+};
+
+export type StoreHeaderBrand = {
+  name: string;
+  logoUrl: string;
+  logoDisplay: string;
+};
+
+export function StoreHeader({
+  brand: brandProp,
+}: {
+  brand?: StoreHeaderBrand;
+} = {}) {
   const { data: categories = [] } = useApiQuery<NavCategory[]>(
     ["catalog-categories"],
     "/api/v1/catalog?type=categories",
   );
   const { data: me, isLoading } = useApiQuery<Me>(["me"], "/api/v1/me");
+  const { data: brand } = useApiQuery<PublicBrand>(
+    ["public-settings"],
+    "/api/v1/settings?public=1",
+    { enabled: !brandProp },
+  );
   const [cartCount, setCartCount] = useState(0);
 
   useEffect(() => {
@@ -62,14 +84,24 @@ export function StoreHeader() {
   }, [categories]);
 
   const cartHasItems = cartCount > 0;
+  const brandName =
+    brandProp?.name || String(brand?.["brand.name"] || "QuayPanel");
+  const logoUrl =
+    brandProp?.logoUrl ?? String(brand?.["brand.logoUrl"] || "").trim();
+  const logoDisplay =
+    brandProp?.logoDisplay ||
+    String(brand?.["theme.logoDisplay"] || "logo_name");
 
   return (
     <header className="border-b bg-card/80 backdrop-blur">
       <div className="mx-auto flex w-full max-w-6xl items-center justify-between gap-4 px-6 py-4">
         <div className="flex items-center gap-8">
-          <Link href="/" className="text-lg font-semibold tracking-tight">
-            QuayPanel
-          </Link>
+          <BrandMark
+            name={brandName}
+            logoUrl={logoUrl}
+            logoDisplay={logoDisplay}
+            size="md"
+          />
           <nav className="hidden items-center gap-1 text-sm md:flex">
             <Link
               href="/store"

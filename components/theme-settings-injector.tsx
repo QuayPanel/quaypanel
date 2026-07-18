@@ -2,31 +2,9 @@
 
 import { useEffect } from "react";
 import { useApiQuery } from "@/components/api";
-import { DEFAULT_THEME_COLORS } from "@/src/domains/settings/defaults";
+import { buildThemeCss } from "@/src/domains/settings/theme-css";
 
-function applyColors(prefix: string, colors: Record<string, string>) {
-  const root = document.documentElement;
-  const map: Record<string, string> = {
-    primary: "--primary",
-    secondary: "--secondary",
-    border: "--border",
-    accent: "--accent",
-    text: "--foreground",
-    muted: "--muted-foreground",
-    inverted: "--primary-foreground",
-    bg: "--background",
-    bgSecondary: "--card",
-  };
-  for (const [key, cssVar] of Object.entries(map)) {
-    if (colors[key]) {
-      root.style.setProperty(
-        prefix ? `${cssVar}` : cssVar,
-        colors[key],
-      );
-    }
-  }
-}
-
+/** Keeps the SSR theme stylesheet in sync after settings load / update. */
 export function ThemeSettingsInjector() {
   const { data } = useApiQuery<Record<string, unknown>>(
     ["public-settings"],
@@ -35,18 +13,39 @@ export function ThemeSettingsInjector() {
 
   useEffect(() => {
     if (!data) return;
-    const light = {
-      ...DEFAULT_THEME_COLORS.light,
-      ...((data["theme.colors.light"] as Record<string, string>) ?? {}),
-    };
-    const dark = {
-      ...DEFAULT_THEME_COLORS.dark,
-      ...((data["theme.colors.dark"] as Record<string, string>) ?? {}),
-    };
-    const isDark = document.documentElement.classList.contains("dark");
-    applyColors("", isDark ? dark : light);
+    const css = buildThemeCss(
+      (data["theme.colors.light"] as Record<string, string>) ?? null,
+      (data["theme.colors.dark"] as Record<string, string>) ?? null,
+    );
+    let style = document.getElementById(
+      "quaypanel-theme-vars",
+    ) as HTMLStyleElement | null;
+    if (!style) {
+      style = document.createElement("style");
+      style.id = "quaypanel-theme-vars";
+      document.head.appendChild(style);
+    }
+    style.textContent = css;
 
-    const favicon = String(data["brand.faviconUrl"] || "");
+    // Clear any legacy inline overrides from older injectors
+    const root = document.documentElement;
+    for (const prop of [
+      "--primary",
+      "--secondary",
+      "--border",
+      "--accent",
+      "--foreground",
+      "--muted-foreground",
+      "--primary-foreground",
+      "--background",
+      "--card",
+      "--ring",
+      "--card-foreground",
+    ]) {
+      root.style.removeProperty(prop);
+    }
+
+    const favicon = String(data["brand.faviconUrl"] || "").trim();
     if (favicon) {
       let link = document.querySelector(
         "link[rel='icon']",

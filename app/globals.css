@@ -1,42 +1,42 @@
 @import "tailwindcss";
 
 :root {
-  --background: #f4f6f8;
-  --foreground: #0f1720;
-  --card: #ffffff;
-  --card-foreground: #0f1720;
-  --primary: #0b6e4f;
-  --primary-foreground: #f4fffa;
-  --secondary: #e8eef2;
-  --secondary-foreground: #0f1720;
-  --muted: #eef2f5;
-  --muted-foreground: #5b6b78;
-  --accent: #d7f0e6;
-  --accent-foreground: #0b6e4f;
+  --background: #ffffff;
+  --foreground: #0f172a;
+  --card: #f8fafc;
+  --card-foreground: #0f172a;
+  --primary: #1d4ed8;
+  --primary-foreground: #ffffff;
+  --secondary: #64748b;
+  --secondary-foreground: #0f172a;
+  --muted: #f1f5f9;
+  --muted-foreground: #64748b;
+  --accent: #0ea5e9;
+  --accent-foreground: #0f172a;
   --destructive: #c0392b;
-  --border: #d7dee5;
-  --input: #d7dee5;
-  --ring: #0b6e4f;
+  --border: #e2e8f0;
+  --input: #e2e8f0;
+  --ring: #1d4ed8;
   --radius: 0.625rem;
 }
 
 .dark {
-  --background: #0c1210;
-  --foreground: #e8f0ec;
-  --card: #141c18;
-  --card-foreground: #e8f0ec;
-  --primary: #3dba8a;
-  --primary-foreground: #062417;
-  --secondary: #1c2722;
-  --secondary-foreground: #e8f0ec;
-  --muted: #1a221e;
-  --muted-foreground: #9aaca3;
-  --accent: #1a3329;
-  --accent-foreground: #3dba8a;
+  --background: #0f172a;
+  --foreground: #f8fafc;
+  --card: #1e293b;
+  --card-foreground: #f8fafc;
+  --primary: #3b82f6;
+  --primary-foreground: #0f172a;
+  --secondary: #94a3b8;
+  --secondary-foreground: #f8fafc;
+  --muted: #1e293b;
+  --muted-foreground: #94a3b8;
+  --accent: #38bdf8;
+  --accent-foreground: #f8fafc;
   --destructive: #e57373;
-  --border: #24302b;
-  --input: #24302b;
-  --ring: #3dba8a;
+  --border: #334155;
+  --input: #334155;
+  --ring: #3b82f6;
 }
 
 @theme inline {
@@ -75,16 +75,32 @@ body {
 
 .hero-grid {
   background-image:
-    radial-gradient(circle at 20% 20%, rgba(11, 110, 79, 0.18), transparent 40%),
-    radial-gradient(circle at 80% 0%, rgba(15, 23, 32, 0.08), transparent 35%),
-    linear-gradient(180deg, #f7faf8 0%, #eef3f0 100%);
+    radial-gradient(
+      circle at 20% 20%,
+      color-mix(in srgb, var(--primary) 22%, transparent),
+      transparent 40%
+    ),
+    radial-gradient(circle at 80% 0%, rgba(15, 23, 42, 0.08), transparent 35%),
+    linear-gradient(
+      180deg,
+      color-mix(in srgb, var(--background) 92%, var(--primary)) 0%,
+      var(--background) 100%
+    );
 }
 
 .dark .hero-grid {
   background-image:
-    radial-gradient(circle at 20% 20%, rgba(61, 186, 138, 0.16), transparent 40%),
+    radial-gradient(
+      circle at 20% 20%,
+      color-mix(in srgb, var(--primary) 18%, transparent),
+      transparent 40%
+    ),
     radial-gradient(circle at 80% 0%, rgba(0, 0, 0, 0.35), transparent 35%),
-    linear-gradient(180deg, #0c1210 0%, #101816 100%);
+    linear-gradient(
+      180deg,
+      color-mix(in srgb, var(--background) 88%, var(--primary)) 0%,
+      var(--background) 100%
+    );
 }
 
 /* Theme-aware @uiw/react-md-editor */

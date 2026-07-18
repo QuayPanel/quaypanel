@@ -24,6 +24,7 @@ import {
   Puzzle,
 } from "lucide-react";
 import { getSessionUser } from "@/src/auth/session";
+import { BrandMark } from "@/components/brand-mark";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { AccountMenu } from "@/components/account-menu";
 import { getSetting } from "@/src/domains/settings/service";
@@ -121,6 +122,10 @@ export default async function AdminLayout({
 
   const ticketsEnabled = Boolean(await getSetting("tickets.enabled", true));
   const brand = String(await getSetting("brand.name", "QuayPanel"));
+  const logoUrl = String(await getSetting("brand.logoUrl", "")).trim();
+  const logoDisplay = String(
+    await getSetting("theme.logoDisplay", "logo_name"),
+  );
   const groups = navGroups
     .map((group) => ({
       ...group,
@@ -133,10 +138,14 @@ export default async function AdminLayout({
   return (
     <div className="h-screen md:grid md:grid-cols-[240px_1fr]">
       <aside className="flex h-screen flex-col border-r bg-card">
-        <div className="flex h-16 shrink-0 items-center border-b px-5 text-lg font-semibold">
-          <Link href="/admin" className="hover:opacity-80">
-            {brand}
-          </Link>
+        <div className="flex h-16 shrink-0 items-center border-b px-5">
+          <BrandMark
+            name={brand}
+            logoUrl={logoUrl}
+            logoDisplay={logoDisplay}
+            href="/admin"
+            size="sm"
+          />
         </div>
         <nav className="min-h-0 flex-1 space-y-4 overflow-y-auto p-3">
           {groups.map((group) => (
