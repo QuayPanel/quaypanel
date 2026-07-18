@@ -1,0 +1,740 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum Role {
+  ADMIN
+  STAFF
+  CLIENT
+}
+
+enum InvoiceStatus {
+  DRAFT
+  UNPAID
+  PAID
+  VOID
+  REFUNDED
+}
+
+enum OrderStatus {
+  PENDING
+  COMPLETED
+  CANCELLED
+}
+
+enum PaymentStatus {
+  PENDING
+  COMPLETED
+  FAILED
+  REFUNDED
+}
+
+enum ServiceStatus {
+  PENDING
+  ACTIVE
+  SUSPENDED
+  TERMINATED
+}
+
+enum CouponType {
+  PERCENT
+  FIXED
+}
+
+enum TicketStatus {
+  OPEN
+  PENDING
+  ANSWERED
+  CLOSED
+}
+
+enum TicketPriority {
+  LOW
+  MEDIUM
+  HIGH
+  URGENT
+}
+
+enum AffiliateStatus {
+  ACTIVE
+  DISABLED
+}
+
+enum ReferralStatus {
+  PENDING
+  APPROVED
+  PAID
+}
+
+enum AllowQuantity {
+  NO
+  SEPARATED
+  COMBINED
+}
+
+enum PlanType {
+  FREE
+  ONE_TIME
+  RECURRING
+}
+
+enum BillingPeriod {
+  DAY
+  WEEK
+  MONTH
+  YEAR
+}
+
+enum ConfigOptionType {
+  TEXT
+  NUMBER
+  SELECT
+  RADIO
+  CHECKBOX
+  SLIDER
+}
+
+enum CreditType {
+  DEPOSIT
+  PURCHASE
+  ADJUSTMENT
+  DOWNGRADE
+  REFUND
+}
+
+model User {
+  id             String          @id @default(cuid())
+  name           String
+  email          String          @unique
+  emailVerified  Boolean         @default(false)
+  image          String?
+  role           Role            @default(CLIENT)
+  clientId       String?
+  client         Client?         @relation(fields: [clientId], references: [id], onDelete: SetNull)
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+  sessions       Session[]
+  accounts       Account[]
+  apiKeys        ApiKey[]
+  auditLogs      AuditLog[]
+  ticketMessages TicketMessage[]
+
+  @@map("user")
+}
+
+model Session {
+  id        String   @id @default(cuid())
+  expiresAt DateTime
+  token     String   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  ipAddress String?
+  userAgent String?
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("session")
+}
+
+model Account {
+  id                    String    @id @default(cuid())
+  accountId             String
+  providerId            String
+  userId                String
+  user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  accessToken           String?
+  refreshToken          String?
+  idToken               String?
+  accessTokenExpiresAt  DateTime?
+  refreshTokenExpiresAt DateTime?
+  scope                 String?
+  password              String?
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+
+  @@map("account")
+}
+
+model Verification {
+  id         String   @id @default(cuid())
+  identifier String
+  value      String
+  expiresAt  DateTime
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@map("verification")
+}
+
+model Client {
+  id                      String             @id @default(cuid())
+  number                  Int                @unique @default(autoincrement())
+  name                    String
+  firstName               String?
+  lastName                String?
+  company                 String?
+  email                   String             @unique
+  phone                   String?
+  address1                String?
+  address2                String?
+  city                    String?
+  state                   String?
+  postalCode              String?
+  country                 String?
+  taxId                   String?
+  creditBalanceMinor      Int                @default(0)
+  stripeCustomerId        String?
+  defaultPaymentMethodId  String?
+  tenantId                String?
+  createdAt               DateTime           @default(now())
+  updatedAt               DateTime           @updatedAt
+  users                   User[]
+  orders                  Order[]
+  invoices                Invoice[]
+  services                Service[]
+  tickets                 Ticket[]
+  affiliate               Affiliate?
+  creditLedger            CreditTransaction[]
+  carts                   Cart[]
+
+  @@index([stripeCustomerId])
+  @@map("client")
+}
+
+model Category {
+  id          String     @id @default(cuid())
+  number      Int        @unique @default(autoincrement())
+  name        String
+  slug        String     @unique
+  description String?
+  imageUrl    String?
+  sortOrder   Int        @default(0)
+  active      Boolean    @default(true)
+  parentId    String?
+  parent      Category?  @relation("CategoryTree", fields: [parentId], references: [id], onDelete: SetNull)
+  children    Category[] @relation("CategoryTree")
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+  products    Product[]
+
+  @@index([parentId])
+  @@map("category")
+}
+
+model Product {
+  id                String           @id @default(cuid())
+  number            Int              @unique @default(autoincrement())
+  name              String
+  description       String?
+  slug              String           @unique
+  active            Boolean          @default(true)
+  hidden            Boolean          @default(false)
+  stock             Int?
+  perUserLimit      Int?
+  allowQuantity     AllowQuantity    @default(NO)
+  categoryId        String?
+  category          Category?        @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  imageUrl          String?
+  featured          Boolean          @default(false)
+  sortOrder         Int              @default(0)
+  provisionProvider String           @default("noop")
+  provisionConfig   Json             @default("{}")
+  createdAt         DateTime         @default(now())
+  updatedAt         DateTime         @updatedAt
+  plans             ProductPlan[]
+  upgrades          ProductUpgrade[] @relation("ProductUpgrades")
+  upgradeTargetsOf  ProductUpgrade[] @relation("UpgradeTargets")
+  configOptions     ConfigOptionProduct[]
+
+  @@map("product")
+}
+
+model ProductPlan {
+  id            String        @id @default(cuid())
+  productId     String
+  product       Product       @relation(fields: [productId], references: [id], onDelete: Cascade)
+  name          String
+  description   String?
+  price         Int
+  /// Optional dollar formula, e.g. "2.99 * ({server.memory} / 1024)". When set, evaluated at configure/checkout.
+  priceFormula  String?
+  currency      String        @default("USD")
+  type          PlanType      @default(RECURRING)
+  intervalCount Int           @default(1)
+  billingPeriod BillingPeriod @default(MONTH)
+  /// Derived display/compat string, e.g. "month" or "3 month"
+  interval      String        @default("month")
+  setupFee      Int           @default(0)
+  active        Boolean       @default(true)
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+  orderItems    OrderItem[]
+  services      Service[]
+
+  @@map("product_plan")
+}
+
+model ProductUpgrade {
+  id              String  @id @default(cuid())
+  productId       String
+  product         Product @relation("ProductUpgrades", fields: [productId], references: [id], onDelete: Cascade)
+  targetProductId String
+  targetProduct   Product @relation("UpgradeTargets", fields: [targetProductId], references: [id], onDelete: Cascade)
+
+  @@unique([productId, targetProductId])
+  @@map("product_upgrade")
+}
+
+model ConfigOption {
+  id          String                @id @default(cuid())
+  number      Int                   @unique @default(autoincrement())
+  name        String
+  description String?
+  envKey      String
+  type        ConfigOptionType
+  hidden      Boolean               @default(false)
+  /// 0 = no order; 1 = first, 2 = second, etc.
+  sortOrder   Int                   @default(0)
+  createdAt   DateTime              @default(now())
+  updatedAt   DateTime              @updatedAt
+  products    ConfigOptionProduct[]
+  choices     ConfigOptionChoice[]
+
+  @@map("config_option")
+}
+
+model ConfigOptionProduct {
+  id             String       @id @default(cuid())
+  configOptionId String
+  configOption   ConfigOption @relation(fields: [configOptionId], references: [id], onDelete: Cascade)
+  productId      String
+  product        Product      @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@unique([configOptionId, productId])
+  @@map("config_option_product")
+}
+
+model ConfigOptionChoice {
+  id             String        @id @default(cuid())
+  configOptionId String
+  configOption   ConfigOption  @relation(fields: [configOptionId], references: [id], onDelete: Cascade)
+  name           String
+  envKey         String
+  sortOrder      Int           @default(0)
+  pricingName    String
+  pricingType    PlanType      @default(FREE)
+  price          Int           @default(0)
+  intervalCount  Int           @default(1)
+  billingPeriod  BillingPeriod @default(MONTH)
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+
+  @@map("config_option_choice")
+}
+
+model Order {
+  id            String      @id @default(cuid())
+  number        Int         @unique @default(autoincrement())
+  clientId      String
+  client        Client      @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  status        OrderStatus @default(PENDING)
+  currency      String      @default("USD")
+  subtotal      Int         @default(0)
+  discountMinor Int         @default(0)
+  taxMinor      Int         @default(0)
+  total         Int         @default(0)
+  couponId      String?
+  coupon        Coupon?     @relation(fields: [couponId], references: [id], onDelete: SetNull)
+  affiliateCode String?
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+  items         OrderItem[]
+  invoices      Invoice[]
+  referrals     AffiliateReferral[]
+
+  @@map("order")
+}
+
+model OrderItem {
+  id        String      @id @default(cuid())
+  orderId   String
+  order     Order       @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  planId    String
+  plan      ProductPlan @relation(fields: [planId], references: [id])
+  quantity  Int         @default(1)
+  unitPrice Int
+  total     Int
+  config    Json        @default("{}")
+  services  Service[]
+
+  @@map("order_item")
+}
+
+model Invoice {
+  id            String        @id @default(cuid())
+  number        String        @unique
+  clientId      String
+  client        Client        @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  orderId       String?
+  order         Order?        @relation(fields: [orderId], references: [id], onDelete: SetNull)
+  serviceId     String?
+  service       Service?      @relation(fields: [serviceId], references: [id], onDelete: SetNull)
+  status        InvoiceStatus @default(UNPAID)
+  currency      String        @default("USD")
+  subtotal      Int           @default(0)
+  discountMinor Int           @default(0)
+  taxMinor      Int           @default(0)
+  total         Int           @default(0)
+  couponId      String?
+  coupon        Coupon?       @relation(fields: [couponId], references: [id], onDelete: SetNull)
+  dueAt         DateTime?
+  paidAt        DateTime?
+  isProforma    Boolean       @default(false)
+  snapshot      Json?
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+  items         InvoiceItem[]
+  payments      Payment[]
+
+  @@map("invoice")
+}
+
+model InvoiceItem {
+  id          String  @id @default(cuid())
+  invoiceId   String
+  invoice     Invoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  description String
+  quantity    Int     @default(1)
+  unitPrice   Int
+  total       Int
+
+  @@map("invoice_item")
+}
+
+model Service {
+  id           String        @id @default(cuid())
+  number       Int           @unique @default(autoincrement())
+  clientId     String
+  client       Client        @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  orderItemId  String?
+  orderItem    OrderItem?    @relation(fields: [orderItemId], references: [id], onDelete: SetNull)
+  planId       String
+  plan         ProductPlan   @relation(fields: [planId], references: [id])
+  status       ServiceStatus @default(PENDING)
+  externalId   String?
+  providerId   String        @default("noop")
+  hostname     String?
+  nextDueAt    DateTime?
+  billingCycle String        @default("month")
+  quantity     Int           @default(1)
+  config       Json          @default("{}")
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+  invoices     Invoice[]
+
+  @@index([status, nextDueAt])
+  @@map("service")
+}
+
+model Coupon {
+  id               String     @id @default(cuid())
+  number           Int        @unique @default(autoincrement())
+  code             String     @unique
+  type             CouponType
+  value            Int
+  maxUses          Int?
+  maxUsesPerClient Int?
+  uses             Int        @default(0)
+  expiresAt        DateTime?
+  active           Boolean    @default(true)
+  createdAt        DateTime   @default(now())
+  updatedAt        DateTime   @updatedAt
+  orders           Order[]
+  invoices         Invoice[]
+
+  @@map("coupon")
+}
+
+model Ticket {
+  id        String         @id @default(cuid())
+  number    String         @unique
+  clientId  String
+  client    Client         @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  subject   String
+  status    TicketStatus   @default(OPEN)
+  priority  TicketPriority @default(MEDIUM)
+  createdAt DateTime       @default(now())
+  updatedAt DateTime       @updatedAt
+  messages  TicketMessage[]
+
+  @@map("ticket")
+}
+
+model TicketMessage {
+  id           String   @id @default(cuid())
+  ticketId     String
+  ticket       Ticket   @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  authorUserId String
+  author       User     @relation(fields: [authorUserId], references: [id], onDelete: Cascade)
+  body         String
+  isStaff      Boolean  @default(false)
+  createdAt    DateTime @default(now())
+
+  @@map("ticket_message")
+}
+
+model Affiliate {
+  id                 String              @id @default(cuid())
+  clientId           String              @unique
+  client             Client              @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  code               String              @unique
+  commissionPercent  Int                 @default(10)
+  balanceMinor       Int                 @default(0)
+  status             AffiliateStatus     @default(ACTIVE)
+  createdAt          DateTime            @default(now())
+  updatedAt          DateTime            @updatedAt
+  referrals          AffiliateReferral[]
+
+  @@map("affiliate")
+}
+
+model AffiliateReferral {
+  id               String         @id @default(cuid())
+  affiliateId      String
+  affiliate        Affiliate      @relation(fields: [affiliateId], references: [id], onDelete: Cascade)
+  referredClientId String?
+  orderId          String?
+  order            Order?         @relation(fields: [orderId], references: [id], onDelete: SetNull)
+  commissionMinor  Int            @default(0)
+  status           ReferralStatus @default(PENDING)
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
+
+  @@map("affiliate_referral")
+}
+
+model Payment {
+  id             String        @id @default(cuid())
+  number         Int           @unique @default(autoincrement())
+  invoiceId      String
+  invoice        Invoice       @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  gatewayId      String
+  amount         Int
+  currency       String        @default("USD")
+  status         PaymentStatus @default(PENDING)
+  externalId     String?
+  checkoutUrl    String?
+  metadata       Json?
+  idempotencyKey String?       @unique
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+
+  @@index([externalId, gatewayId])
+  @@map("payment")
+}
+
+model GatewayConfig {
+  id        String   @id @default(cuid())
+  gatewayId String   @unique
+  enabled   Boolean  @default(false)
+  config    Json     @default("{}")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("gateway_config")
+}
+
+model Setting {
+  id        String   @id @default(cuid())
+  key       String   @unique
+  value     Json
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("setting")
+}
+
+model ApiKey {
+  id         String    @id @default(cuid())
+  name       String
+  keyPrefix  String
+  keyHash    String    @unique
+  scopes     String[]  @default([])
+  userId     String
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  lastUsedAt DateTime?
+  expiresAt  DateTime?
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+
+  @@map("api_key")
+}
+
+model AuditLog {
+  id         String   @id @default(cuid())
+  actorId    String?
+  actor      User?    @relation(fields: [actorId], references: [id], onDelete: SetNull)
+  action     String
+  entityType String
+  entityId   String?
+  metadata   Json?
+  ipAddress  String?
+  createdAt  DateTime @default(now())
+
+  @@index([entityType, entityId])
+  @@index([createdAt])
+  @@map("audit_log")
+}
+
+model PluginInstall {
+  id        String   @id @default(cuid())
+  pluginId  String   @unique
+  enabled   Boolean  @default(true)
+  config    Json     @default("{}")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("plugin_install")
+}
+
+model WebhookEvent {
+  id          String   @id @default(cuid())
+  gatewayId   String
+  externalId  String
+  payload     Json?
+  processedAt DateTime @default(now())
+
+  @@unique([gatewayId, externalId])
+  @@map("webhook_event")
+}
+
+model CreditTransaction {
+  id          String     @id @default(cuid())
+  clientId    String
+  client      Client     @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  amountMinor Int
+  type        CreditType
+  note        String?
+  refType     String?
+  refId       String?
+  createdAt   DateTime   @default(now())
+
+  @@index([clientId, createdAt])
+  @@map("credit_transaction")
+}
+
+model EmailLog {
+  id        String   @id @default(cuid())
+  to        String
+  subject   String
+  status    String   @default("sent")
+  createdAt DateTime @default(now())
+
+  @@index([createdAt])
+  @@map("email_log")
+}
+
+enum CronRunKind {
+  DAILY
+  SWEEP
+}
+
+enum CronRunStatus {
+  SUCCESS
+  FAILED
+}
+
+model CronRun {
+  id                  String        @id @default(cuid())
+  kind                CronRunKind
+  status              CronRunStatus
+  startedAt           DateTime
+  finishedAt          DateTime
+  invoicesCreated     Int           @default(0)
+  servicesSuspended   Int           @default(0)
+  servicesTerminated  Int           @default(0)
+  ticketsClosed       Int           @default(0)
+  invoicesCharged     Int           @default(0)
+  error               String?
+
+  @@index([kind, finishedAt])
+  @@index([finishedAt])
+  @@map("cron_run")
+}
+
+model Cart {
+  id        String     @id @default(cuid())
+  clientId  String?
+  client    Client?    @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  guestKey  String?    @unique
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+  lines     CartLine[]
+
+  @@index([clientId])
+  @@map("cart")
+}
+
+model CartLine {
+  id         String   @id @default(cuid())
+  cartId     String
+  cart       Cart     @relation(fields: [cartId], references: [id], onDelete: Cascade)
+  productId  String
+  productSlug String
+  productName String
+  planId     String
+  planName   String
+  currency   String   @default("USD")
+  quantity   Int      @default(1)
+  planPriceMinor Int  @default(0)
+  setupFeeMinor Int   @default(0)
+  config     Json     @default("[]")
+  lineTotalMinor Int  @default(0)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([cartId])
+  @@map("cart_line")
+}
+
+model KnowledgeCategory {
+  id        String              @id @default(cuid())
+  number    Int                 @unique @default(autoincrement())
+  name      String
+  slug      String              @unique
+  parentId  String?
+  parent    KnowledgeCategory?  @relation("KnowledgeCategoryTree", fields: [parentId], references: [id], onDelete: Cascade)
+  children  KnowledgeCategory[] @relation("KnowledgeCategoryTree")
+  sortOrder Int                 @default(0)
+  articles  KnowledgeArticle[]
+  createdAt DateTime            @default(now())
+  updatedAt DateTime            @updatedAt
+
+  @@index([parentId, sortOrder])
+  @@map("knowledge_category")
+}
+
+model KnowledgeArticle {
+  id               String              @id @default(cuid())
+  number           Int                 @unique @default(autoincrement())
+  slug             String              @unique
+  title            String
+  shortDescription String              @default("")
+  body             String
+  published        Boolean             @default(false)
+  publishedAt      DateTime?
+  categoryId       String?
+  category         KnowledgeCategory?  @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  sortOrder        Int                 @default(0)
+  createdAt        DateTime            @default(now())
+  updatedAt        DateTime            @updatedAt
+
+  @@index([categoryId, sortOrder])
+  @@map("knowledge_article")
+}
+

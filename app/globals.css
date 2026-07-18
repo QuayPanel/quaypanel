@@ -1,26 +1,167 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --background: #f4f6f8;
+  --foreground: #0f1720;
+  --card: #ffffff;
+  --card-foreground: #0f1720;
+  --primary: #0b6e4f;
+  --primary-foreground: #f4fffa;
+  --secondary: #e8eef2;
+  --secondary-foreground: #0f1720;
+  --muted: #eef2f5;
+  --muted-foreground: #5b6b78;
+  --accent: #d7f0e6;
+  --accent-foreground: #0b6e4f;
+  --destructive: #c0392b;
+  --border: #d7dee5;
+  --input: #d7dee5;
+  --ring: #0b6e4f;
+  --radius: 0.625rem;
+}
+
+.dark {
+  --background: #0c1210;
+  --foreground: #e8f0ec;
+  --card: #141c18;
+  --card-foreground: #e8f0ec;
+  --primary: #3dba8a;
+  --primary-foreground: #062417;
+  --secondary: #1c2722;
+  --secondary-foreground: #e8f0ec;
+  --muted: #1a221e;
+  --muted-foreground: #9aaca3;
+  --accent: #1a3329;
+  --accent-foreground: #3dba8a;
+  --destructive: #e57373;
+  --border: #24302b;
+  --input: #24302b;
+  --ring: #3dba8a;
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --font-sans: var(--font-outfit);
+  --font-mono: var(--font-jetbrains);
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+* {
+  border-color: var(--border);
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-outfit), system-ui, sans-serif;
+}
+
+.hero-grid {
+  background-image:
+    radial-gradient(circle at 20% 20%, rgba(11, 110, 79, 0.18), transparent 40%),
+    radial-gradient(circle at 80% 0%, rgba(15, 23, 32, 0.08), transparent 35%),
+    linear-gradient(180deg, #f7faf8 0%, #eef3f0 100%);
+}
+
+.dark .hero-grid {
+  background-image:
+    radial-gradient(circle at 20% 20%, rgba(61, 186, 138, 0.16), transparent 40%),
+    radial-gradient(circle at 80% 0%, rgba(0, 0, 0, 0.35), transparent 35%),
+    linear-gradient(180deg, #0c1210 0%, #101816 100%);
+}
+
+/* Theme-aware @uiw/react-md-editor */
+.apex-md-editor,
+.apex-md-editor[data-color-mode] {
+  --color-canvas-default: var(--card);
+  --color-canvas-subtle: var(--muted);
+  --color-border-default: var(--border);
+  --color-border-muted: var(--border);
+  --color-neutral-muted: var(--muted);
+  --color-accent-fg: var(--primary);
+  --color-accent-emphasis: var(--primary);
+  --color-fg-default: var(--foreground);
+  --color-fg-muted: var(--muted-foreground);
+  --color-fg-subtle: var(--muted-foreground);
+  --color-danger-fg: var(--destructive);
+}
+
+.apex-md-editor .w-md-editor {
+  background-color: var(--card) !important;
+  color: var(--foreground) !important;
+  box-shadow: none !important;
+  border: none !important;
+}
+
+.apex-md-editor .w-md-editor-toolbar {
+  background-color: var(--muted) !important;
+  border-bottom-color: var(--border) !important;
+}
+
+.apex-md-editor .w-md-editor-toolbar li > button {
+  color: var(--foreground) !important;
+}
+
+.apex-md-editor .w-md-editor-toolbar li > button:hover,
+.apex-md-editor .w-md-editor-toolbar li > button:focus {
+  background-color: var(--secondary) !important;
+  color: var(--foreground) !important;
+}
+
+.apex-md-editor .w-md-editor-toolbar-divider {
+  background-color: var(--border) !important;
+}
+
+.apex-md-editor .w-md-editor-content,
+.apex-md-editor .w-md-editor-area,
+.apex-md-editor .w-md-editor-text {
+  background-color: var(--card) !important;
+}
+
+.apex-md-editor .w-md-editor-text-pre,
+.apex-md-editor .wmde-markdown {
+  background-color: var(--card) !important;
+  color: var(--foreground) !important;
+}
+
+/* Input stays transparent (library overlay); only caret is themed */
+.apex-md-editor .w-md-editor-text-input {
+  background-color: transparent !important;
+  color: transparent !important;
+  -webkit-text-fill-color: transparent !important;
+  caret-color: var(--foreground) !important;
+}
+
+/* Keep mirror layers in sync (font + line metrics) */
+.apex-md-editor .w-md-editor-text-pre,
+.apex-md-editor .w-md-editor-text-input {
+  font-family: var(--font-mono), ui-monospace, monospace !important;
+  font-size: 0.875rem !important;
+  line-height: 1.5 !important;
+}
+
+.apex-md-editor .w-md-editor-text-pre > code,
+.apex-md-editor .w-md-editor-text-pre .token {
+  color: var(--foreground) !important;
+  background: transparent !important;
+  font-family: inherit !important;
+  font-size: inherit !important;
+  line-height: inherit !important;
 }
