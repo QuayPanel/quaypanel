@@ -23,11 +23,15 @@ Built with Next.js, PostgreSQL, Prisma, Better Auth, Redis, BullMQ, Stripe, PayP
 - Plugin interfaces for payment gateways and provisioning providers
 - Audit logging and webhook idempotency
 
+
+
 ## Requirements
 
 - Node.js 20+
 - Docker (recommended) for PostgreSQL and Redis
 - SMTP credentials (optional in development — emails are logged)
+
+
 
 ## Quick start
 
@@ -60,17 +64,110 @@ Default admin (from `.env`):
 - Email: `admin@example.com`
 - Password: `ChangeMe123!`
 
+
+
+## Production
+
+QuayPanel needs an **always-on** host: the Next.js app **and** a long-running BullMQ worker. Vercel (or similar serverless) alone is not enough - renewals, suspensions, and cron jobs run in `npm run worker`.
+
+### 1. Prepare the server
+
+- Node.js 20+
+- PostgreSQL 16+ and Redis 7+ (use `docker compose up -d` for those, or managed services)
+- A reverse proxy with HTTPS (Caddy, Nginx, Traefik, etc.)
+
+
+
+### 2. Configure environment
+
+```bash
+cp .env.example .env
+```
+
+Set at least:
+
+
+| Variable                                              | Production value                                       |
+| ----------------------------------------------------- | ------------------------------------------------------ |
+| `NODE_ENV`                                            | `production`                                           |
+| `APP_URL` / `NEXT_PUBLIC_APP_URL` / `BETTER_AUTH_URL` | Your public HTTPS URL (same value)                     |
+| `BETTER_AUTH_SECRET`                                  | Long random secret (32+ characters)                    |
+| `DATABASE_URL`                                        | Postgres connection string                             |
+| `REDIS_URL`                                           | Redis connection string (include password if required) |
+| `ADMIN_EMAIL` / `ADMIN_PASSWORD`                      | Strong credentials (used by seed)                      |
+| `SMTP_*`                                              | Real SMTP so invoices and notices send                 |
+| `STRIPE_*` / `PAYPAL_*`                               | Live keys when you go live; set `PAYPAL_MODE=live`     |
+
+
+
+
+### 3. Install, migrate, build
+
+```bash
+npm ci
+npx prisma migrate deploy   # or: npm run db:migrate:deploy
+npm run db:seed             # first deploy only — creates admin + defaults
+npm run build
+```
+
+Do **not** use `npm run db:migrate` in production (`migrate dev` is for local development).
+
+### 4. Run the app and worker
+
+Both processes must stay running:
+
+```bash
+npm run start    # Next.js on port 3000 (or set PORT)
+npm run worker   # renewals, suspensions, queued jobs
+```
+
+Example with [PM2](https://pm2.keymetrics.io/):
+
+```bash
+npm install -g pm2
+pm2 start npm --name quaypanel-web -- start
+pm2 start npm --name quaypanel-worker -- run worker
+pm2 save
+pm2 startup
+```
+
+Point your reverse proxy at the web process (port `3000` by default). After DNS and TLS are up, open the site, sign in as the seeded admin, and change the password.
+
+### 5. Updates
+
+```bash
+git pull
+npm ci
+npx prisma migrate deploy
+npm run build
+pm2 restart quaypanel-web quaypanel-worker
+```
+
+
+
+### Notes
+
+- Keep Postgres and Redis reachable from both the web app and the worker.
+- Configure Stripe/PayPal webhook URLs to your public host (`/api/webhooks/stripe`, `/api/webhooks/paypal`).
+- Seed only on first install (or when you intentionally want to re-apply seed data).
+
+
+
 ## Architecture
 
-| Area | Path |
-|------|------|
-| Domain services | `src/domains/*` |
-| Payment / provisioning plugins | `src/plugins/*` |
-| API routes | `app/api/v1/*` |
-| Storefront | `app/(store)/store/*` |
-| Webhooks | `app/api/webhooks/*` |
-| Worker | `worker/index.ts` |
-| Prisma schema | `prisma/schema.prisma` |
+
+| Area                           | Path                   |
+| ------------------------------ | ---------------------- |
+| Domain services                | `src/domains/*`        |
+| Payment / provisioning plugins | `src/plugins/*`        |
+| API routes                     | `app/api/v1/*`         |
+| Storefront                     | `app/(store)/store/*`  |
+| Webhooks                       | `app/api/webhooks/*`   |
+| Worker                         | `worker/index.ts`      |
+| Prisma schema                  | `prisma/schema.prisma` |
+
+
+
 
 ### Phase 2 notes
 
@@ -93,6 +190,8 @@ Webhook endpoints:
 
 - `POST /api/webhooks/stripe`
 - `POST /api/webhooks/paypal`
+
+
 
 ### Provisioning
 
@@ -123,16 +222,24 @@ Response envelope:
 { "data": {}, "error": null, "meta": {} }
 ```
 
+
+
 ## Scripts
 
-| Script | Description |
-|--------|-------------|
-| `npm run dev` | Next.js development server |
-| `npm run worker` | BullMQ worker process |
-| `npm run db:migrate` | Run Prisma migrations |
-| `npm run db:seed` | Seed admin, settings, gateway configs |
-| `npm run build` | Generate Prisma client + production build |
-| `npm run email:dev` | Preview React Email templates |
+
+| Script                      | Description                               |
+| --------------------------- | ----------------------------------------- |
+| `npm run dev`               | Next.js development server                |
+| `npm run start`             | Next.js production server (after `build`) |
+| `npm run worker`            | BullMQ worker process                     |
+| `npm run db:migrate`        | Prisma migrations (development)           |
+| `npm run db:migrate:deploy` | Apply migrations (production)             |
+| `npm run db:seed`           | Seed admin, settings, gateway configs     |
+| `npm run build`             | Generate Prisma client + production build |
+| `npm run email:dev`         | Preview React Email templates             |
+
+
+
 
 ## License
 
