@@ -17,6 +17,7 @@ import {
   ToggleField,
 } from "@/components/admin/settings-fields";
 import { FieldHint } from "@/components/admin/field-hint";
+import { uploadImageFile } from "@/components/upload-image";
 import { DEFAULT_THEME_COLORS } from "@/src/domains/settings/defaults";
 
 type SettingsMap = Record<string, unknown>;
@@ -47,12 +48,7 @@ function colorsOf(
 }
 
 async function uploadFile(file: File) {
-  const body = new FormData();
-  body.append("file", file);
-  const res = await fetch("/api/v1/uploads", { method: "POST", body });
-  const json = await res.json();
-  if (!res.ok) throw new Error(json?.error?.message ?? "Upload failed");
-  return json.data.url as string;
+  return uploadImageFile(file);
 }
 
 const COLOR_KEYS = [
@@ -220,7 +216,7 @@ export default function AdminSettingsPage() {
                 <Label>Logo</Label>
                 <Input
                   type="file"
-                  accept="image/*"
+                  accept="image/*,.svg,.ico"
                   onChange={async (e) => {
                     const file = e.target.files?.[0];
                     if (!file) return;
@@ -236,6 +232,7 @@ export default function AdminSettingsPage() {
                 />
                 <FieldHint>
                   Shown in the storefront header and customer area navigation.
+                  JPEG, PNG, WebP, GIF, SVG, or ICO up to 5MB.
                 </FieldHint>
                 {str(form["brand.logoUrl"]) ? (
                   // eslint-disable-next-line @next/next/no-img-element
@@ -250,7 +247,7 @@ export default function AdminSettingsPage() {
                 <Label>Favicon</Label>
                 <Input
                   type="file"
-                  accept="image/*"
+                  accept="image/*,.svg,.ico"
                   onChange={async (e) => {
                     const file = e.target.files?.[0];
                     if (!file) return;
@@ -265,7 +262,8 @@ export default function AdminSettingsPage() {
                   }}
                 />
                 <FieldHint>
-                  Browser tab icon for the storefront and admin panel.
+                  Browser tab icon for the storefront and admin panel. JPEG,
+                  PNG, WebP, GIF, SVG, or ICO up to 5MB.
                 </FieldHint>
               </div>
               <div className="space-y-2">

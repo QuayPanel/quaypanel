@@ -7,6 +7,7 @@ import { toast } from "sonner";
 import { apiFetch, useApiQuery } from "@/components/api";
 import { EditPageChrome } from "@/components/admin/edit-page-chrome";
 import { FieldHint } from "@/components/admin/field-hint";
+import { uploadImageFile } from "@/components/upload-image";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -89,12 +90,8 @@ export function CategoryFormPage({ mode, categoryNumber }: CategoryFormProps) {
   async function uploadImage(file: File) {
     setUploading(true);
     try {
-      const body = new FormData();
-      body.append("file", file);
-      const res = await fetch("/api/v1/uploads", { method: "POST", body });
-      const json = await res.json();
-      if (!res.ok) throw new Error(json?.error?.message ?? "Upload failed");
-      setForm((prev) => ({ ...prev, imageUrl: json.data.url }));
+      const url = await uploadImageFile(file);
+      setForm((prev) => ({ ...prev, imageUrl: url }));
       toast.success("Image uploaded");
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Upload failed");
