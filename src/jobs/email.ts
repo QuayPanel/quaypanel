@@ -5,7 +5,12 @@ import { sendTemplatedEmail } from "@/src/email/send";
 export type EmailJobData = {
   to: string;
   subject: string;
-  template: "invoice" | "receipt" | "welcome";
+  template:
+    | "invoice"
+    | "receipt"
+    | "welcome"
+    | "ticket_reply"
+    | "cron_failure";
   payload: Record<string, unknown>;
 };
 

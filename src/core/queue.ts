@@ -26,7 +26,12 @@ export function getQueue(name: QueueName): Queue {
 export async function enqueueEmail(data: {
   to: string;
   subject: string;
-  template: "invoice" | "receipt" | "welcome";
+  template:
+    | "invoice"
+    | "receipt"
+    | "welcome"
+    | "ticket_reply"
+    | "cron_failure";
   payload: Record<string, unknown>;
 }) {
   try {

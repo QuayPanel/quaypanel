@@ -629,14 +629,39 @@ model CreditTransaction {
 }
 
 model EmailLog {
-  id        String   @id @default(cuid())
-  to        String
-  subject   String
-  status    String   @default("sent")
-  createdAt DateTime @default(now())
+  id          String   @id @default(cuid())
+  to          String
+  from        String   @default("")
+  subject     String
+  status      String   @default("sent")
+  templateKey String?
+  html        String?  @db.Text
+  error       String?  @db.Text
+  createdAt   DateTime @default(now())
 
   @@index([createdAt])
+  @@index([status])
   @@map("email_log")
+}
+
+enum EmailBodyFormat {
+  markdown
+  html
+}
+
+model EmailTemplate {
+  id          String         @id @default(cuid())
+  key         String         @unique
+  name        String
+  description String?
+  subject     String
+  bodyFormat  EmailBodyFormat @default(markdown)
+  body        String         @db.Text
+  enabled     Boolean        @default(true)
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+
+  @@map("email_template")
 }
 
 enum CronRunKind {

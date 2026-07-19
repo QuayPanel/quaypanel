@@ -322,8 +322,10 @@ export async function processDailyCron(_job: Job) {
       await enqueueEmail({
         to: systemEmail,
         subject: "Cron job failure",
-        template: "welcome",
-        payload: { name: "Admin", error: String(err) },
+        template: "cron_failure",
+        payload: {
+          error: err instanceof Error ? err.message : String(err),
+        },
       }).catch(() => undefined);
     }
     throw err;

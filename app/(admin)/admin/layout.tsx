@@ -22,6 +22,8 @@ import {
   BookOpen,
   Palette,
   Puzzle,
+  Mail,
+  Inbox,
 } from "lucide-react";
 import { getSessionUser } from "@/src/auth/session";
 import { BrandMark } from "@/components/brand-mark";
@@ -101,6 +103,8 @@ const navGroups: NavGroup[] = [
     label: "System",
     links: [
       { href: "/admin/settings", label: "Settings", icon: Settings },
+      { href: "/admin/email-templates", label: "Email templates", icon: Mail },
+      { href: "/admin/email-logs", label: "Email logs", icon: Inbox },
       { href: "/admin/themes", label: "Themes", icon: Palette },
       { href: "/admin/plugins", label: "Plugins", icon: Puzzle },
       { href: "/admin/cron", label: "Cron", icon: Timer },

@@ -1,13 +1,13 @@
-import { render } from "@react-email/render";
 import nodemailer from "nodemailer";
 import { env } from "@/src/core/env";
 import { logger } from "@/src/core/logger";
 import { prisma } from "@/src/db/client";
-import { InvoiceEmail } from "@/src/email/templates/invoice";
-import { ReceiptEmail } from "@/src/email/templates/receipt";
-import { WelcomeEmail } from "@/src/email/templates/welcome";
 import type { EmailJobData } from "@/src/jobs/email";
 import { getSettingsMap } from "@/src/domains/settings/service";
+import {
+  htmlToPlainText,
+  renderEmailTemplate,
+} from "@/src/email/render-template";
 
 async function getTransporter() {
   const settings = await getSettingsMap();
@@ -37,69 +37,52 @@ async function getTransporter() {
   return { transporter, from, settings };
 }
 
-function wrapHtml(html: string, settings: Record<string, unknown>, brand: string) {
-  const header = String(settings["mail.headerHtml"] || "").replaceAll(
-    "{{brand}}",
-    brand,
-  );
-  const footer = String(settings["mail.footerHtml"] || "").replaceAll(
-    "{{brand}}",
-    brand,
-  );
-  const css = String(settings["mail.css"] || "");
-  return `<!doctype html><html><head><style>${css}</style></head><body>${header}${html}${footer}</body></html>`;
-}
-
 export async function sendTemplatedEmail(data: EmailJobData) {
   const { transporter, from, settings } = await getTransporter();
-  const brand = String(settings["brand.name"] || env.DEFAULT_BRAND_NAME);
 
-  let html: string;
-  switch (data.template) {
-    case "invoice":
-      html = await render(
-        InvoiceEmail({
-          brandName: brand,
-          clientName: String(data.payload.clientName ?? ""),
-          invoiceNumber: String(data.payload.invoiceNumber ?? ""),
-          total: String(data.payload.total ?? ""),
-          currency: String(data.payload.currency ?? "USD"),
-        }),
-      );
-      break;
-    case "receipt":
-      html = await render(
-        ReceiptEmail({
-          brandName: brand,
-          clientName: String(data.payload.clientName ?? ""),
-          invoiceNumber: String(data.payload.invoiceNumber ?? ""),
-          total: String(data.payload.total ?? ""),
-        }),
-      );
-      break;
-    case "welcome":
-      html = await render(
-        WelcomeEmail({
-          brandName: brand,
-          name: String(data.payload.name ?? ""),
-        }),
-      );
-      break;
+  const rendered = await renderEmailTemplate({
+    key: data.template,
+    settings,
+    payload: data.payload,
+  });
+
+  if (!rendered.enabled) {
+    logger.info(
+      { to: data.to, template: data.template },
+      "Email template disabled — skipped",
+    );
+    await prisma.emailLog
+      .create({
+        data: {
+          to: data.to,
+          from,
+          subject: rendered.subject,
+          status: "logged",
+          templateKey: rendered.templateKey,
+          html: rendered.html,
+          error: "Template disabled",
+        },
+      })
+      .catch(() => undefined);
+    return;
   }
 
-  html = wrapHtml(html, settings, brand);
+  const text = htmlToPlainText(rendered.html);
 
   if (!transporter) {
     logger.info(
-      { to: data.to, subject: data.subject, template: data.template },
+      { to: data.to, subject: rendered.subject, template: data.template },
       "SMTP not configured — email logged only",
     );
     await prisma.emailLog
       .create({
         data: {
           to: data.to,
-          subject: data.subject,
+          from,
+          subject: rendered.subject,
           status: "logged",
+          templateKey: rendered.templateKey,
+          html: rendered.html,
         },
       })
       .catch(() => undefined);
@@ -110,17 +93,37 @@ export async function sendTemplatedEmail(data: EmailJobData) {
     await transporter.sendMail({
       from,
       to: data.to,
-      subject: data.subject,
-      html,
+      subject: rendered.subject,
+      html: rendered.html,
+      text,
     });
     await prisma.emailLog.create({
-      data: { to: data.to, subject: data.subject, status: "sent" },
+      data: {
+        to: data.to,
+        from,
+        subject: rendered.subject,
+        status: "sent",
+        templateKey: rendered.templateKey,
+        html: rendered.html,
+      },
     });
-    logger.info({ to: data.to, subject: data.subject }, "Email sent");
+    logger.info(
+      { to: data.to, subject: rendered.subject, template: data.template },
+      "Email sent",
+    );
   } catch (err) {
+    const message = err instanceof Error ? err.message : "Send failed";
     await prisma.emailLog
       .create({
-        data: { to: data.to, subject: data.subject, status: "failed" },
+        data: {
+          to: data.to,
+          from,
+          subject: rendered.subject,
+          status: "failed",
+          templateKey: rendered.templateKey,
+          html: rendered.html,
+          error: message,
+        },
       })
       .catch(() => undefined);
     throw err;

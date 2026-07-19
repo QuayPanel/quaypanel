@@ -101,11 +101,14 @@ export async function replyToTicket(
   if (isStaff) {
     await enqueueEmail({
       to: ticket.client.email,
-      subject: `Ticket ${ticket.number} updated`,
-      template: "welcome",
+      subject: `New reply on ticket ${ticket.number}`,
+      template: "ticket_reply",
       payload: {
+        clientName: ticket.client.name,
         name: ticket.client.name,
-        message: `Staff replied to ticket ${ticket.number}: ${ticket.subject}`,
+        ticketNumber: ticket.number,
+        ticketSubject: ticket.subject,
+        message: body,
       },
     }).catch(() => undefined);
   }

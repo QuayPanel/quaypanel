@@ -153,6 +153,12 @@ async function main() {
   // Catalog (categories, products, plans, coupons) is intentionally empty —
   // configure everything from Admin after install.
 
+  const { seedEmailTemplates } = await import(
+    "../src/domains/email/service"
+  );
+  await seedEmailTemplates();
+  logger.info("Seeded email templates");
+
   logger.info("Seed complete");
 }
 
