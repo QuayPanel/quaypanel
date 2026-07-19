@@ -9,6 +9,26 @@ import { compareConfigOptionOrder } from "@/src/domains/config-options/order";
 
 const CATALOG_CACHE = cacheKey("catalog", "products");
 
+/** Lowest active/listed plan price; products with no plans sort last. */
+export function startingPriceMinor(product: {
+  plans: Array<{ price: number }>;
+}): number {
+  if (!product.plans.length) return Number.POSITIVE_INFINITY;
+  return Math.min(...product.plans.map((p) => p.price));
+}
+
+/** Storefront order: cheaper starting price first, then name. */
+export function sortProductsByStartingPrice<
+  T extends { plans: Array<{ price: number }>; name?: string | null },
+>(products: T[]): T[] {
+  return [...products].sort((a, b) => {
+    const pa = startingPriceMinor(a);
+    const pb = startingPriceMinor(b);
+    if (pa !== pb) return pa - pb;
+    return String(a.name ?? "").localeCompare(String(b.name ?? ""));
+  });
+}
+
 const productDetailInclude = {
   category: true,
   plans: true,
@@ -133,8 +153,12 @@ export async function listProducts(activeOnly = false) {
     orderBy: [{ sortOrder: "asc" }, { number: "asc" }],
   });
 
-  await cacheSet(cache, products, 30);
-  return products;
+  const ordered = activeOnly
+    ? sortProductsByStartingPrice(products)
+    : products;
+
+  await cacheSet(cache, ordered, 30);
+  return ordered;
 }
 
 export async function getProduct(idOrNumber: string | number) {
@@ -196,10 +220,12 @@ export async function listFeaturedProducts() {
     },
     orderBy: [{ sortOrder: "asc" }, { number: "asc" }],
   });
-  return products.map((p) => ({
-    ...p,
-    configOptionCount: p.configOptions.length,
-  }));
+  return sortProductsByStartingPrice(
+    products.map((p) => ({
+      ...p,
+      configOptionCount: p.configOptions.length,
+    })),
+  );
 }
 
 export async function createProduct(

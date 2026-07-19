@@ -6,7 +6,7 @@ import { useApiQuery } from "@/components/api";
 import { StoreMarkdown } from "@/components/store-markdown";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { formatMoney } from "@/src/core/utils";
+import { formatFromPrice } from "@/src/core/utils";
 import { getProductViewHref } from "@/src/store/product-links";
 
 type Category = {
@@ -30,6 +30,10 @@ type Product = {
     price: number;
     currency: string;
     setupFee?: number;
+    type?: string;
+    interval?: string;
+    intervalCount?: number;
+    billingPeriod?: string;
   }>;
   configOptionCount?: number;
 };
@@ -125,9 +129,7 @@ export default function StorePage() {
                       </p>
                     )}
                     {from && (
-                      <p className="font-medium">
-                        From {formatMoney(from.price, from.currency)}
-                      </p>
+                      <p className="font-medium">{formatFromPrice(from)}</p>
                     )}
                     <Button asChild>
                       <Link href={href}>View product</Link>

@@ -12,6 +12,67 @@ export function formatMoney(amountMinor: number, currency = "USD"): string {
   }).format(amountMinor / 100);
 }
 
+/** Short billing suffix for store “From …” prices, e.g. " /mo", " /yr", " /3mo". */
+export function formatBillingSuffix(plan: {
+  type?: string | null;
+  interval?: string | null;
+  intervalCount?: number | null;
+  billingPeriod?: string | null;
+}): string {
+  const type = String(plan.type || "").toUpperCase();
+  if (type === "FREE" || type === "ONE_TIME") return "";
+
+  const periodRaw = String(plan.billingPeriod || "").toUpperCase();
+  if (periodRaw) {
+    const count = Math.max(1, Number(plan.intervalCount) || 1);
+    const short =
+      periodRaw === "MONTH"
+        ? "mo"
+        : periodRaw === "YEAR"
+          ? "yr"
+          : periodRaw === "WEEK"
+            ? "wk"
+            : periodRaw === "DAY"
+              ? "day"
+              : periodRaw.toLowerCase();
+    if (count === 1) return ` /${short}`;
+    return short === "day" ? ` /${count} days` : ` /${count}${short}`;
+  }
+
+  const interval = String(plan.interval || "").toLowerCase().trim();
+  if (!interval || interval === "once") return "";
+  if (interval === "month") return " /mo";
+  if (interval === "year") return " /yr";
+  if (interval === "week") return " /wk";
+  if (interval === "day") return " /day";
+  const match = interval.match(/^(\d+)\s+(month|year|week|day)s?$/);
+  if (match) {
+    const n = Number(match[1]);
+    const unit =
+      match[2] === "month"
+        ? "mo"
+        : match[2] === "year"
+          ? "yr"
+          : match[2] === "week"
+            ? "wk"
+            : "day";
+    return unit === "day" ? ` /${n} days` : ` /${n}${unit}`;
+  }
+  return ` /${interval}`;
+}
+
+/** e.g. "From $9.99 /mo" */
+export function formatFromPrice(plan: {
+  price: number;
+  currency?: string | null;
+  type?: string | null;
+  interval?: string | null;
+  intervalCount?: number | null;
+  billingPeriod?: string | null;
+}): string {
+  return `From ${formatMoney(plan.price, plan.currency || "USD")}${formatBillingSuffix(plan)}`;
+}
+
 /** Convert a dollar string/number (e.g. 10.98) to minor units (cents). */
 export function dollarsToMinor(value: string | number): number {
   const raw = typeof value === "number" ? value : Number(String(value).trim());

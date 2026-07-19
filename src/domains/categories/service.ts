@@ -4,6 +4,7 @@ import { NotFoundError, ValidationError } from "@/src/core/errors";
 import { slugify } from "@/src/core/utils";
 import { writeAuditLog } from "@/src/domains/audit/service";
 import { cacheDel, cacheKey } from "@/src/core/redis";
+import { sortProductsByStartingPrice } from "@/src/domains/products/service";
 
 const CATALOG_CACHE = cacheKey("catalog", "products");
 
@@ -179,16 +180,20 @@ export async function getCategoryBySlug(slug: string) {
 
   return {
     ...category,
-    products: category.products.map((p) => ({
-      ...p,
-      configOptionCount: p.configOptions.length,
-      configOptions: undefined,
-    })),
-    featuredProducts: featuredProducts.map((p) => ({
-      ...p,
-      configOptionCount: p.configOptions.length,
-      configOptions: undefined,
-    })),
+    products: sortProductsByStartingPrice(
+      category.products.map((p) => ({
+        ...p,
+        configOptionCount: p.configOptions.length,
+        configOptions: undefined,
+      })),
+    ),
+    featuredProducts: sortProductsByStartingPrice(
+      featuredProducts.map((p) => ({
+        ...p,
+        configOptionCount: p.configOptions.length,
+        configOptions: undefined,
+      })),
+    ),
   };
 }
 

@@ -7,7 +7,7 @@ import { PageMotion } from "@/components/motion";
 import { useApiQuery } from "@/components/api";
 import { StoreMarkdown } from "@/components/store-markdown";
 import { Button } from "@/components/ui/button";
-import { formatMoney } from "@/src/core/utils";
+import { formatFromPrice } from "@/src/core/utils";
 import {
   addSolePlanAndGoToCart,
   productNeedsConfigure,
@@ -25,6 +25,9 @@ type Product = {
     currency: string;
     interval: string;
     setupFee?: number;
+    type?: string;
+    intervalCount?: number;
+    billingPeriod?: string;
   }>;
   configOptions?: Array<{ hidden?: boolean }>;
 };
@@ -92,10 +95,7 @@ export default function StoreProductPage() {
 
       {fromPlan ? (
         <p className="mt-6 text-lg">
-          From{" "}
-          <span className="font-semibold">
-            {formatMoney(fromPlan.price, fromPlan.currency)}
-          </span>
+          <span className="font-semibold">{formatFromPrice(fromPlan)}</span>
         </p>
       ) : (
         <p className="mt-6 text-sm text-destructive">
