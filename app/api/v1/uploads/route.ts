@@ -5,6 +5,7 @@ import { ValidationError } from "@/src/core/errors";
 
 export const runtime = "nodejs";
 
+/** Kept for API/script clients; the admin UI uses the uploadImageAction server action. */
 export async function POST(request: Request) {
   return withApi(request, async ({ auth }) => {
     requireStaff(auth);
@@ -13,7 +14,7 @@ export async function POST(request: Request) {
       form = await request.formData();
     } catch {
       throw new ValidationError(
-        "Could not read upload. File may be too large (max 5MB).",
+        "Could not read upload. File may be too large (max 5MB), or a reverse proxy is blocking it (413).",
       );
     }
     const file = form.get("file");

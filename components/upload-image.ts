@@ -1,31 +1,14 @@
-type UploadResponse = {
-  data?: { url?: string };
-  error?: { message?: string };
-};
+"use client";
 
-/** Upload an image via /api/v1/uploads and return the public URL. */
+import { uploadImageAction } from "@/src/actions/upload-image";
+
+/** Upload an image (logo, favicon, product art) and return the public URL. */
 export async function uploadImageFile(file: File): Promise<string> {
   const body = new FormData();
   body.append("file", file);
-  const res = await fetch("/api/v1/uploads", { method: "POST", body });
-  const text = await res.text();
-
-  let json: UploadResponse | null = null;
-  try {
-    json = text ? (JSON.parse(text) as UploadResponse) : null;
-  } catch {
-    throw new Error(
-      res.ok
-        ? "Upload returned an invalid response"
-        : `Upload failed (${res.status}). Try JPEG, PNG, WebP, GIF, SVG, or ICO under 5MB.`,
-    );
+  const result = await uploadImageAction(body);
+  if (!result.ok) {
+    throw new Error(result.error);
   }
-
-  if (!res.ok) {
-    throw new Error(json?.error?.message ?? `Upload failed (${res.status})`);
-  }
-
-  const url = json?.data?.url;
-  if (!url) throw new Error("Upload succeeded but no URL was returned");
-  return url;
+  return result.url;
 }

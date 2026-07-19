@@ -150,6 +150,7 @@ pm2 restart quaypanel-web quaypanel-worker
 - Keep Postgres and Redis reachable from both the web app and the worker.
 - Configure Stripe/PayPal webhook URLs to your public host (`/api/webhooks/stripe`, `/api/webhooks/paypal`).
 - Seed only on first install (or when you intentionally want to re-apply seed data).
+- If logo/favicon uploads return **413**, raise the reverse-proxy body limit (e.g. Nginx `client_max_body_size 10m;`). Next.js is configured for 10MB uploads.
 
 
 
