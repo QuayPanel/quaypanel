@@ -1,27 +1,53 @@
-import { withApi, jsonOk } from "@/src/core/api";
+import { withApi, jsonOk, jsonError } from "@/src/core/api";
 import { requireStaff } from "@/src/auth/session";
-import { saveUploadedImage } from "@/src/core/upload";
+import { saveUploadedImageBytes } from "@/src/core/upload";
 import { ValidationError } from "@/src/core/errors";
 
 export const runtime = "nodejs";
 
-/** Kept for API/script clients; the admin UI uses the uploadImageAction server action. */
+const MAX_BYTES = 5 * 1024 * 1024;
+
 export async function POST(request: Request) {
   return withApi(request, async ({ auth }) => {
     requireStaff(auth);
-    let form: FormData;
-    try {
-      form = await request.formData();
-    } catch {
-      throw new ValidationError(
-        "Could not read upload. File may be too large (max 5MB), or a reverse proxy is blocking it (413).",
-      );
+
+    const url = new URL(request.url);
+    const fromQuery = url.searchParams.get("name")?.trim();
+    const fromHeader = request.headers.get("x-file-name")?.trim();
+    let name = fromQuery || "upload.png";
+    if (!fromQuery && fromHeader) {
+      try {
+        name = decodeURIComponent(fromHeader);
+      } catch {
+        name = fromHeader;
+      }
     }
-    const file = form.get("file");
-    if (!(file instanceof File) || file.size === 0) {
+    const type =
+      request.headers.get("content-type")?.split(";")[0]?.trim() || "";
+
+    let bytes: Buffer;
+    try {
+      bytes = Buffer.from(await request.arrayBuffer());
+    } catch {
+      throw new ValidationError("Could not read upload body");
+    }
+
+    if (bytes.byteLength === 0) {
       throw new ValidationError("Image file is required");
     }
-    const url = await saveUploadedImage(file);
-    return jsonOk({ url });
+    if (bytes.byteLength > MAX_BYTES) {
+      throw new ValidationError("Image must be 5MB or smaller");
+    }
+
+    try {
+      const publicUrl = await saveUploadedImageBytes({
+        name,
+        type: type === "application/octet-stream" ? "" : type,
+        bytes,
+      });
+      return jsonOk({ url: publicUrl });
+    } catch (err) {
+      return jsonError(err);
+    }
   });
 }

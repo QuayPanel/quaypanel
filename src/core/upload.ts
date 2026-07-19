@@ -39,11 +39,11 @@ function extensionFromName(filename: string): string | null {
   return EXT_BY_NAME[ext] ?? null;
 }
 
-function resolveImageExt(file: File): string {
-  const fromMime = EXT_BY_MIME[file.type.toLowerCase()];
+function resolveImageExt(name: string, mime: string): string {
+  const fromMime = EXT_BY_MIME[mime.toLowerCase()];
   if (fromMime) return fromMime;
 
-  const fromName = extensionFromName(file.name);
+  const fromName = extensionFromName(name);
   if (fromName) return fromName;
 
   throw new AppError(
@@ -52,16 +52,36 @@ function resolveImageExt(file: File): string {
   );
 }
 
-export async function saveUploadedImage(file: File): Promise<string> {
-  if (file.size > MAX_BYTES) {
+export async function saveUploadedImageBytes(input: {
+  name: string;
+  type: string;
+  bytes: Buffer | Uint8Array;
+}): Promise<string> {
+  if (input.bytes.byteLength > MAX_BYTES) {
     throw new AppError("Image must be 5MB or smaller", 400);
   }
+  if (input.bytes.byteLength === 0) {
+    throw new AppError("Image file is required", 400);
+  }
 
-  const ext = resolveImageExt(file);
+  const ext = resolveImageExt(input.name, input.type);
   const dir = path.join(process.cwd(), "public", "uploads");
   await mkdir(dir, { recursive: true });
   const filename = `${Date.now()}-${randomBytes(6).toString("hex")}.${ext}`;
-  const buffer = Buffer.from(await file.arrayBuffer());
-  await writeFile(path.join(dir, filename), buffer);
+  await writeFile(path.join(dir, filename), input.bytes);
   return `/uploads/${filename}`;
+}
+
+/** Convenience wrapper for File / Blob uploads. */
+export async function saveUploadedImage(file: {
+  name: string;
+  type: string;
+  size: number;
+  arrayBuffer: () => Promise<ArrayBuffer>;
+}): Promise<string> {
+  return saveUploadedImageBytes({
+    name: file.name,
+    type: file.type,
+    bytes: Buffer.from(await file.arrayBuffer()),
+  });
 }
