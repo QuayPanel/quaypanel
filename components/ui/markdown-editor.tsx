@@ -12,7 +12,7 @@ export function MarkdownEditor({
   label = "Description",
   value,
   onChange,
-  hint = "Markdown is shown on the storefront product page.",
+  hint = "Markdown is shown on the storefront. Single newlines are preserved as line breaks.",
   required,
 }: {
   label?: string;

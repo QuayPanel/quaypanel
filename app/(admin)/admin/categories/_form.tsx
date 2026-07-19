@@ -10,6 +10,7 @@ import { FieldHint } from "@/components/admin/field-hint";
 import { uploadImageFile } from "@/components/upload-image";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { MarkdownEditor } from "@/components/ui/markdown-editor";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { slugify } from "@/src/core/utils";
 
@@ -226,12 +227,11 @@ export function CategoryFormPage({ mode, categoryNumber }: CategoryFormProps) {
             </FieldHint>
           </div>
           <div className="space-y-2">
-            <Label>Description</Label>
-            <Input
+            <MarkdownEditor
+              label="Description"
               value={form.description}
-              onChange={(e) =>
-                setForm({ ...form, description: e.target.value })
-              }
+              onChange={(description) => setForm({ ...form, description })}
+              hint="Markdown is shown on the storefront category pages. Single newlines are preserved."
             />
           </div>
           <div className="space-y-2">

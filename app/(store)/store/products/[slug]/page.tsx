@@ -3,11 +3,10 @@
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useMemo } from "react";
-import Markdown from "react-markdown";
 import { PageMotion } from "@/components/motion";
 import { useApiQuery } from "@/components/api";
+import { StoreMarkdown } from "@/components/store-markdown";
 import { Button } from "@/components/ui/button";
-import { STORE_PROSE_CLASS } from "@/components/store-prose";
 import { formatMoney } from "@/src/core/utils";
 import {
   addSolePlanAndGoToCart,
@@ -81,11 +80,13 @@ export default function StoreProductPage() {
   return (
     <PageMotion>
       <h1 className="text-3xl font-semibold">{product.name}</h1>
-      <div className={`mt-4 max-w-2xl ${STORE_PROSE_CLASS}`}>
+      <div className="mt-4 max-w-2xl">
         {product.description ? (
-          <Markdown>{product.description}</Markdown>
+          <StoreMarkdown>{product.description}</StoreMarkdown>
         ) : (
-          <p>Configure this product to continue.</p>
+          <p className="text-muted-foreground">
+            Configure this product to continue.
+          </p>
         )}
       </div>
 

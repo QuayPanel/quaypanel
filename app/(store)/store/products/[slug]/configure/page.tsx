@@ -2,15 +2,14 @@
 
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
-import Markdown from "react-markdown";
 import { toast } from "sonner";
 import { PageMotion } from "@/components/motion";
 import { useApiQuery } from "@/components/api";
+import { StoreMarkdown } from "@/components/store-markdown";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { STORE_PROSE_CLASS } from "@/components/store-prose";
 import { formatMoney } from "@/src/core/utils";
 import {
   planPriceMinor,
@@ -324,8 +323,8 @@ export default function ConfigureProductPage() {
           <div>
             <h1 className="text-3xl font-semibold">Configure {product.name}</h1>
             {product.description ? (
-              <div className={`mt-4 ${STORE_PROSE_CLASS}`}>
-                <Markdown>{product.description}</Markdown>
+              <div className="mt-4">
+                <StoreMarkdown>{product.description}</StoreMarkdown>
               </div>
             ) : null}
           </div>

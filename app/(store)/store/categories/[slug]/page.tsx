@@ -2,15 +2,11 @@
 
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import Markdown from "react-markdown";
 import { PageMotion } from "@/components/motion";
 import { useApiQuery } from "@/components/api";
+import { StoreMarkdown } from "@/components/store-markdown";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import {
-  STORE_PROSE_CLASS,
-  STORE_PROSE_COMPACT_CLASS,
-} from "@/components/store-prose";
 import { formatMoney } from "@/src/core/utils";
 import { getProductViewHref } from "@/src/store/product-links";
 
@@ -79,9 +75,7 @@ export default function StoreCategoryPage() {
               </CardHeader>
               <CardContent className="space-y-3">
                 {product.description ? (
-                  <div className={STORE_PROSE_COMPACT_CLASS}>
-                    <Markdown>{product.description}</Markdown>
-                  </div>
+                  <StoreMarkdown compact>{product.description}</StoreMarkdown>
                 ) : (
                   <p className="text-sm text-muted-foreground">View plans</p>
                 )}
@@ -105,8 +99,8 @@ export default function StoreCategoryPage() {
     <PageMotion>
       <h1 className="text-3xl font-semibold">{data.name}</h1>
       {data.description ? (
-        <div className={`mt-4 max-w-3xl ${STORE_PROSE_CLASS}`}>
-          <Markdown>{data.description}</Markdown>
+        <div className="mt-4 max-w-3xl">
+          <StoreMarkdown>{data.description}</StoreMarkdown>
         </div>
       ) : null}
 
@@ -130,9 +124,9 @@ export default function StoreCategoryPage() {
                       />
                     ) : null}
                     {child.description ? (
-                      <div className={STORE_PROSE_COMPACT_CLASS}>
-                        <Markdown>{child.description}</Markdown>
-                      </div>
+                      <StoreMarkdown compact>
+                        {child.description}
+                      </StoreMarkdown>
                     ) : null}
                   </CardContent>
                 </Card>

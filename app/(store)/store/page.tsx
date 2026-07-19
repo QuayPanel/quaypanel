@@ -1,15 +1,11 @@
 "use client";
 
 import Link from "next/link";
-import Markdown from "react-markdown";
 import { FadeIn, PageMotion } from "@/components/motion";
 import { useApiQuery } from "@/components/api";
+import { StoreMarkdown } from "@/components/store-markdown";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import {
-  STORE_PROSE_CLASS,
-  STORE_PROSE_COMPACT_CLASS,
-} from "@/components/store-prose";
 import { formatMoney } from "@/src/core/utils";
 import { getProductViewHref } from "@/src/store/product-links";
 
@@ -65,9 +61,9 @@ export default function StorePage() {
   return (
     <PageMotion>
       <FadeIn>
-        <div className={`max-w-2xl ${STORE_PROSE_CLASS} [&_h1]:text-4xl [&_h2]:text-2xl`}>
-          <Markdown>{homeMd}</Markdown>
-        </div>
+        <StoreMarkdown className="max-w-2xl [&_h1]:text-4xl [&_h2]:text-2xl">
+          {homeMd}
+        </StoreMarkdown>
       </FadeIn>
 
       <section className="mt-10">
@@ -94,9 +90,7 @@ export default function StorePage() {
                       />
                     ) : null}
                     {showCategoryDesc && cat.description ? (
-                      <div className={STORE_PROSE_COMPACT_CLASS}>
-                        <Markdown>{cat.description}</Markdown>
-                      </div>
+                      <StoreMarkdown compact>{cat.description}</StoreMarkdown>
                     ) : (
                       <p>{cat.products.length} products</p>
                     )}
@@ -122,9 +116,9 @@ export default function StorePage() {
                   </CardHeader>
                   <CardContent className="space-y-3">
                     {product.description ? (
-                      <div className={STORE_PROSE_COMPACT_CLASS}>
-                        <Markdown>{product.description}</Markdown>
-                      </div>
+                      <StoreMarkdown compact>
+                        {product.description}
+                      </StoreMarkdown>
                     ) : (
                       <p className="text-sm text-muted-foreground">
                         View plans and order.
