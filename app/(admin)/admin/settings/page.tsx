@@ -156,6 +156,18 @@ export default function AdminSettingsPage() {
     onError: (err: Error) => toast.error(err.message),
   });
 
+  const testMail = useMutation({
+    mutationFn: () =>
+      apiFetch<{ to: string; subject: string }>("/api/v1/mail/test", {
+        method: "POST",
+        body: "{}",
+      }),
+    onSuccess: (result) => {
+      toast.success(`Test email sent to ${result.to}`);
+    },
+    onError: (err: Error) => toast.error(err.message),
+  });
+
   if (isLoading || !data) {
     return <p className="text-muted-foreground">Loading...</p>;
   }
@@ -471,10 +483,23 @@ export default function AdminSettingsPage() {
         <TabsContent value="mail">
           <Card>
             <CardHeader>
-              <CardTitle>Mail</CardTitle>
-              <FieldHint>
-                SMTP is required for invoice and ticket emails in production.
-              </FieldHint>
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <div>
+                  <CardTitle>Mail</CardTitle>
+                  <FieldHint>
+                    SMTP is required for invoice and ticket emails in
+                    production. Save changes before testing.
+                  </FieldHint>
+                </div>
+                <Button
+                  type="button"
+                  variant="outline"
+                  disabled={testMail.isPending || save.isPending}
+                  onClick={() => testMail.mutate()}
+                >
+                  {testMail.isPending ? "Sending..." : "Test mail settings"}
+                </Button>
+              </div>
             </CardHeader>
             <CardContent className="grid gap-4 md:grid-cols-2">
               <div className="md:col-span-2">
@@ -674,19 +699,26 @@ export default function AdminSettingsPage() {
                 />
               </div>
               <div className="space-y-2">
-                <Label>Minimum deposit (cents)</Label>
+                <Label>Minimum deposit (USD)</Label>
                 <Input
-                  inputMode="numeric"
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  inputMode="decimal"
                   value={str(form["credits.minDeposit"])}
                   onChange={(e) =>
                     set("credits.minDeposit", Number(e.target.value))
                   }
                 />
+                <FieldHint>Example: 5.00 for a five-dollar minimum.</FieldHint>
               </div>
               <div className="space-y-2">
-                <Label>Maximum deposit (cents)</Label>
+                <Label>Maximum deposit (USD)</Label>
                 <Input
-                  inputMode="numeric"
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  inputMode="decimal"
                   value={str(form["credits.maxDeposit"])}
                   onChange={(e) =>
                     set("credits.maxDeposit", Number(e.target.value))
@@ -694,9 +726,12 @@ export default function AdminSettingsPage() {
                 />
               </div>
               <div className="space-y-2">
-                <Label>Maximum credit balance (cents)</Label>
+                <Label>Maximum credit balance (USD)</Label>
                 <Input
-                  inputMode="numeric"
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  inputMode="decimal"
                   value={str(form["credits.maxBalance"])}
                   onChange={(e) =>
                     set("credits.maxBalance", Number(e.target.value))

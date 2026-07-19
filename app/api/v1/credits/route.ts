@@ -11,6 +11,15 @@ import {
   listCreditLedger,
 } from "@/src/domains/credits/service";
 import { ForbiddenError } from "@/src/core/errors";
+import { minorToDollars } from "@/src/core/utils";
+
+function creditBalancePayload(balanceMinor: number, ledger: unknown) {
+  return {
+    balanceMinor,
+    balance: Number(minorToDollars(balanceMinor)),
+    ledger,
+  };
+}
 
 export async function GET(request: Request) {
   return withApi(request, async ({ auth }) => {
@@ -21,7 +30,7 @@ export async function GET(request: Request) {
         getCreditBalance(ctx.clientId),
         listCreditLedger(ctx.clientId),
       ]);
-      return jsonOk({ balanceMinor: balance, ledger });
+      return jsonOk(creditBalancePayload(balance, ledger));
     }
     requireStaff(auth);
     const clientId = new URL(request.url).searchParams.get("clientId");
@@ -30,7 +39,7 @@ export async function GET(request: Request) {
       getCreditBalance(clientId),
       listCreditLedger(clientId),
     ]);
-    return jsonOk({ balanceMinor: balance, ledger });
+    return jsonOk(creditBalancePayload(balance, ledger));
   });
 }
 

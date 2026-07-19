@@ -1,13 +1,37 @@
 import { z } from "zod";
 import { prisma } from "@/src/db/client";
 import { NotFoundError, ValidationError } from "@/src/core/errors";
+import { dollarsToMinor } from "@/src/core/utils";
 import { getSetting } from "@/src/domains/settings/service";
 import { writeAuditLog } from "@/src/domains/audit/service";
 
-export const creditDepositSchema = z.object({
-  clientId: z.string().min(1),
-  amountMinor: z.number().int().positive(),
-});
+/** Deposit amount in dollars (e.g. 5.00). `amountMinor` kept for backward compatibility. */
+export const creditDepositSchema = z
+  .object({
+    clientId: z.string().min(1),
+    amount: z.number().positive().optional(),
+    amountMinor: z.number().int().positive().optional(),
+  })
+  .refine((v) => v.amount != null || v.amountMinor != null, {
+    message: "amount is required",
+  });
+
+function resolveDepositMinor(data: z.infer<typeof creditDepositSchema>): number {
+  if (data.amount != null) return dollarsToMinor(data.amount);
+  return Number(data.amountMinor);
+}
+
+/** Settings store dollar amounts; ledger/balance remain integer cents. */
+async function creditLimitMinor(
+  key: string,
+  defaultDollars: number,
+): Promise<number> {
+  const dollars = Number(await getSetting(key, defaultDollars));
+  if (!Number.isFinite(dollars) || dollars < 0) {
+    return dollarsToMinor(defaultDollars);
+  }
+  return dollarsToMinor(dollars);
+}
 
 export async function getCreditBalance(clientId: string) {
   const client = await prisma.client.findUnique({ where: { id: clientId } });
@@ -30,11 +54,12 @@ export async function depositCredits(
   const enabled = Boolean(await getSetting("credits.enabled", false));
   if (!enabled) throw new ValidationError("Credits system is disabled");
 
-  const min = Number(await getSetting("credits.minDeposit", 500));
-  const max = Number(await getSetting("credits.maxDeposit", 100000));
-  const maxBalance = Number(await getSetting("credits.maxBalance", 500000));
+  const amountMinor = resolveDepositMinor(data);
+  const min = await creditLimitMinor("credits.minDeposit", 5);
+  const max = await creditLimitMinor("credits.maxDeposit", 1000);
+  const maxBalance = await creditLimitMinor("credits.maxBalance", 5000);
 
-  if (data.amountMinor < min || data.amountMinor > max) {
+  if (amountMinor < min || amountMinor > max) {
     throw new ValidationError("Deposit amount outside allowed range");
   }
 
@@ -42,19 +67,19 @@ export async function depositCredits(
     where: { id: data.clientId },
   });
   if (!client) throw new NotFoundError("Client not found");
-  if (client.creditBalanceMinor + data.amountMinor > maxBalance) {
+  if (client.creditBalanceMinor + amountMinor > maxBalance) {
     throw new ValidationError("Deposit would exceed maximum credit balance");
   }
 
   const updated = await prisma.$transaction(async (tx) => {
     const c = await tx.client.update({
       where: { id: data.clientId },
-      data: { creditBalanceMinor: { increment: data.amountMinor } },
+      data: { creditBalanceMinor: { increment: amountMinor } },
     });
     await tx.creditTransaction.create({
       data: {
         clientId: data.clientId,
-        amountMinor: data.amountMinor,
+        amountMinor,
         type: "DEPOSIT",
         note: "Credit deposit",
       },
@@ -67,7 +92,7 @@ export async function depositCredits(
     action: "credits.deposit",
     entityType: "client",
     entityId: data.clientId,
-    metadata: { amountMinor: data.amountMinor },
+    metadata: { amountMinor, amountDollars: amountMinor / 100 },
   });
 
   return updated;
@@ -121,7 +146,7 @@ export async function creditOnDowngrade(
   const onDowngrade = Boolean(await getSetting("credits.onDowngrade", true));
   if (!enabled || !onDowngrade || amountMinor <= 0) return null;
 
-  const maxBalance = Number(await getSetting("credits.maxBalance", 500000));
+  const maxBalance = await creditLimitMinor("credits.maxBalance", 5000);
   const client = await prisma.client.findUnique({ where: { id: clientId } });
   if (!client) throw new NotFoundError("Client not found");
 
@@ -168,7 +193,7 @@ export async function creditOnRefund(
 ) {
   if (amountMinor <= 0) return null;
 
-  const maxBalance = Number(await getSetting("credits.maxBalance", 500000));
+  const maxBalance = await creditLimitMinor("credits.maxBalance", 5000);
   const client = await prisma.client.findUnique({ where: { id: clientId } });
   if (!client) throw new NotFoundError("Client not found");
 

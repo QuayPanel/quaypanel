@@ -1,5 +1,6 @@
 import nodemailer from "nodemailer";
 import { env } from "@/src/core/env";
+import { ValidationError } from "@/src/core/errors";
 import { logger } from "@/src/core/logger";
 import { prisma } from "@/src/db/client";
 import type { EmailJobData } from "@/src/jobs/email";
@@ -127,5 +128,57 @@ export async function sendTemplatedEmail(data: EmailJobData) {
       })
       .catch(() => undefined);
     throw err;
+  }
+}
+
+/** Send a one-off SMTP test to the configured system email address. */
+export async function sendSmtpTestEmail() {
+  const { transporter, from, settings } = await getTransporter();
+  const to = String(settings["system.email"] || "").trim();
+  const brand = String(settings["brand.name"] || "QuayPanel");
+
+  if (!to) {
+    throw new ValidationError(
+      "Set a system email address under General settings first",
+    );
+  }
+  if (!transporter) {
+    throw new ValidationError("Configure an SMTP host before sending a test");
+  }
+
+  const subject = `Test email from ${brand}`;
+  const html = `<p>This is a test email from <strong>${brand}</strong>.</p><p>If you received this, your mail settings are working.</p>`;
+  const text = htmlToPlainText(html);
+
+  try {
+    await transporter.sendMail({ from, to, subject, html, text });
+    await prisma.emailLog.create({
+      data: {
+        to,
+        from,
+        subject,
+        status: "sent",
+        templateKey: "smtp_test",
+        html,
+      },
+    });
+    logger.info({ to, subject }, "SMTP test email sent");
+    return { to, subject };
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "Send failed";
+    await prisma.emailLog
+      .create({
+        data: {
+          to,
+          from,
+          subject,
+          status: "failed",
+          templateKey: "smtp_test",
+          html,
+          error: message,
+        },
+      })
+      .catch(() => undefined);
+    throw new ValidationError(`SMTP test failed: ${message}`);
   }
 }

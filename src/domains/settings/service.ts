@@ -81,9 +81,9 @@ export const settingsDefaults: Record<string, unknown> = {
   "cron.closeTicketDays": 7,
 
   "credits.enabled": false,
-  "credits.minDeposit": 500,
-  "credits.maxDeposit": 100000,
-  "credits.maxBalance": 500000,
+  "credits.minDeposit": 5,
+  "credits.maxDeposit": 1000,
+  "credits.maxBalance": 5000,
   "credits.autoUse": true,
   "credits.onDowngrade": true,
 
@@ -204,9 +204,9 @@ export const settingsUpdateSchema = z
     "cron.closeTicketDays": optionalInt,
 
     "credits.enabled": optionalBool,
-    "credits.minDeposit": optionalInt,
-    "credits.maxDeposit": optionalInt,
-    "credits.maxBalance": optionalInt,
+    "credits.minDeposit": optionalNum,
+    "credits.maxDeposit": optionalNum,
+    "credits.maxBalance": optionalNum,
     "credits.autoUse": optionalBool,
     "credits.onDowngrade": optionalBool,
 
@@ -311,6 +311,37 @@ function migrateLegacy(map: Record<string, unknown>) {
   ) {
     map["cron.suspendOverdueDays"] = map["billing.suspendDays"];
   }
+
+  // Credits limits used to be stored in cents; convert to dollars.
+  const creditCentDefaults: Record<string, { cents: number; dollars: number }> =
+    {
+      "credits.minDeposit": { cents: 500, dollars: 5 },
+      "credits.maxDeposit": { cents: 100000, dollars: 1000 },
+      "credits.maxBalance": { cents: 500000, dollars: 5000 },
+    };
+  for (const [key, { cents, dollars }] of Object.entries(creditCentDefaults)) {
+    if (Number(map[key]) === cents) {
+      map[key] = dollars;
+    }
+  }
+
+  // Custom cent configs: all three look like whole-cent amounts.
+  const minDep = Number(map["credits.minDeposit"]);
+  const maxDep = Number(map["credits.maxDeposit"]);
+  const maxBal = Number(map["credits.maxBalance"]);
+  if (
+    Number.isInteger(minDep) &&
+    minDep >= 100 &&
+    Number.isInteger(maxDep) &&
+    maxDep >= 10000 &&
+    Number.isInteger(maxBal) &&
+    maxBal >= 10000
+  ) {
+    map["credits.minDeposit"] = minDep / 100;
+    map["credits.maxDeposit"] = maxDep / 100;
+    map["credits.maxBalance"] = maxBal / 100;
+  }
+
   return map;
 }
 
