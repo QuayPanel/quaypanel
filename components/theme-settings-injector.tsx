@@ -4,6 +4,20 @@ import { useEffect } from "react";
 import { useApiQuery } from "@/components/api";
 import { buildThemeCss } from "@/src/domains/settings/theme-css";
 
+function setFaviconHref(href: string) {
+  const links = document.querySelectorAll("link[rel='icon'], link[rel='shortcut icon']");
+  if (links.length === 0) {
+    const link = document.createElement("link");
+    link.rel = "icon";
+    document.head.appendChild(link);
+    link.href = href;
+    return;
+  }
+  links.forEach((node) => {
+    (node as HTMLLinkElement).href = href;
+  });
+}
+
 /** Keeps the SSR theme stylesheet in sync after settings load / update. */
 export function ThemeSettingsInjector() {
   const { data } = useApiQuery<Record<string, unknown>>(
@@ -47,15 +61,11 @@ export function ThemeSettingsInjector() {
 
     const favicon = String(data["brand.faviconUrl"] || "").trim();
     if (favicon) {
-      let link = document.querySelector(
-        "link[rel='icon']",
-      ) as HTMLLinkElement | null;
-      if (!link) {
-        link = document.createElement("link");
-        link.rel = "icon";
-        document.head.appendChild(link);
-      }
-      link.href = favicon;
+      // Bust aggressive browser favicon caching
+      const bust = favicon.includes("?")
+        ? `${favicon}&v=${encodeURIComponent(favicon)}`
+        : `${favicon}?v=${encodeURIComponent(favicon)}`;
+      setFaviconHref(bust);
     }
   }, [data]);
 

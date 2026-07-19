@@ -9,6 +9,11 @@ export async function ThemeCss() {
     (map["theme.colors.dark"] as Record<string, string>) ?? null,
   );
   const favicon = String(map["brand.faviconUrl"] || "").trim();
+  const faviconHref = favicon
+    ? favicon.includes("?")
+      ? `${favicon}&v=${encodeURIComponent(favicon)}`
+      : `${favicon}?v=${encodeURIComponent(favicon)}`
+    : "";
 
   return (
     <>
@@ -16,9 +21,7 @@ export async function ThemeCss() {
         id="quaypanel-theme-vars"
         dangerouslySetInnerHTML={{ __html: css }}
       />
-      {favicon ? (
-        <link rel="icon" href={favicon} />
-      ) : null}
+      {faviconHref ? <link rel="icon" href={faviconHref} /> : null}
     </>
   );
 }

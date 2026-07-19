@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, type FocusEvent } from "react";
+import { useRouter } from "next/navigation";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { PageMotion } from "@/components/motion";
@@ -47,10 +48,6 @@ function colorsOf(
   return { ...base };
 }
 
-async function uploadFile(file: File) {
-  return uploadImageFile(file);
-}
-
 const COLOR_KEYS = [
   ["primary", "Primary"],
   ["secondary", "Secondary"],
@@ -81,13 +78,21 @@ function unlockAutofill(e: FocusEvent<HTMLInputElement>) {
   e.currentTarget.removeAttribute("readonly");
 }
 
+async function uploadFile(file: File) {
+  return uploadImageFile(file);
+}
+
 export default function AdminSettingsPage() {
+  const router = useRouter();
   const queryClient = useQueryClient();
   const { data, isLoading, refetch } = useApiQuery<SettingsMap>(
     ["settings"],
     "/api/v1/settings",
   );
   const [form, setForm] = useState<SettingsMap>({});
+  const [uploadingBrand, setUploadingBrand] = useState<
+    null | "logo" | "favicon"
+  >(null);
 
   useEffect(() => {
     if (data) setForm(data);
@@ -111,6 +116,30 @@ export default function AdminSettingsPage() {
     }));
   }
 
+  async function persistBrandAsset(
+    key: "brand.logoUrl" | "brand.faviconUrl",
+    file: File,
+  ) {
+    const kind = key === "brand.logoUrl" ? "logo" : "favicon";
+    setUploadingBrand(kind);
+    try {
+      const url = await uploadFile(file);
+      set(key, url);
+      await apiFetch<SettingsMap>("/api/v1/settings", {
+        method: "PATCH",
+        body: JSON.stringify({ [key]: url }),
+      });
+      await queryClient.invalidateQueries({ queryKey: ["settings"] });
+      await queryClient.invalidateQueries({ queryKey: ["public-settings"] });
+      router.refresh();
+      toast.success(kind === "logo" ? "Logo updated" : "Favicon updated");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Upload failed");
+    } finally {
+      setUploadingBrand(null);
+    }
+  }
+
   const save = useMutation({
     mutationFn: () =>
       apiFetch<SettingsMap>("/api/v1/settings", {
@@ -122,6 +151,7 @@ export default function AdminSettingsPage() {
       setForm(result);
       queryClient.setQueryData(["settings"], result);
       queryClient.invalidateQueries({ queryKey: ["public-settings"] });
+      router.refresh();
     },
     onError: (err: Error) => toast.error(err.message),
   });
@@ -217,22 +247,17 @@ export default function AdminSettingsPage() {
                 <Input
                   type="file"
                   accept="image/*,.svg,.ico"
+                  disabled={uploadingBrand !== null}
                   onChange={async (e) => {
                     const file = e.target.files?.[0];
+                    e.target.value = "";
                     if (!file) return;
-                    try {
-                      set("brand.logoUrl", await uploadFile(file));
-                      toast.success("Logo uploaded");
-                    } catch (err) {
-                      toast.error(
-                        err instanceof Error ? err.message : "Upload failed",
-                      );
-                    }
+                    await persistBrandAsset("brand.logoUrl", file);
                   }}
                 />
                 <FieldHint>
-                  Shown in the storefront header and customer area navigation.
-                  JPEG, PNG, WebP, GIF, SVG, or ICO up to 5MB.
+                  Applied immediately to the storefront and admin header. JPEG,
+                  PNG, WebP, GIF, SVG, or ICO up to 5MB.
                 </FieldHint>
                 {str(form["brand.logoUrl"]) ? (
                   // eslint-disable-next-line @next/next/no-img-element
@@ -248,23 +273,27 @@ export default function AdminSettingsPage() {
                 <Input
                   type="file"
                   accept="image/*,.svg,.ico"
+                  disabled={uploadingBrand !== null}
                   onChange={async (e) => {
                     const file = e.target.files?.[0];
+                    e.target.value = "";
                     if (!file) return;
-                    try {
-                      set("brand.faviconUrl", await uploadFile(file));
-                      toast.success("Favicon uploaded");
-                    } catch (err) {
-                      toast.error(
-                        err instanceof Error ? err.message : "Upload failed",
-                      );
-                    }
+                    await persistBrandAsset("brand.faviconUrl", file);
                   }}
                 />
                 <FieldHint>
-                  Browser tab icon for the storefront and admin panel. JPEG,
-                  PNG, WebP, GIF, SVG, or ICO up to 5MB.
+                  Applied immediately as the browser tab icon. Hard-refresh if
+                  the old icon is cached. JPEG, PNG, WebP, GIF, SVG, or ICO up
+                  to 5MB.
                 </FieldHint>
+                {str(form["brand.faviconUrl"]) ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={str(form["brand.faviconUrl"])}
+                    alt=""
+                    className="mt-2 h-8 w-8 object-contain"
+                  />
+                ) : null}
               </div>
               <div className="space-y-2">
                 <Label required>System email address</Label>

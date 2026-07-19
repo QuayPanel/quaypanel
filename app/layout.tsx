@@ -4,6 +4,8 @@ import { Providers } from "@/components/providers";
 import { ThemeCss } from "@/components/theme-css";
 import "./globals.css";
 
+export const dynamic = "force-dynamic";
+
 const outfit = Outfit({
   variable: "--font-outfit",
   subsets: ["latin"],
