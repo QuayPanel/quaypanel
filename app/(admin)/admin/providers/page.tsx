@@ -5,6 +5,8 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { PageMotion } from "@/components/motion";
 import { apiFetch, useApiQuery } from "@/components/api";
+import { PageHeader } from "@/components/admin/page-header";
+import { FieldHint } from "@/components/admin/field-hint";
 import { ToggleField } from "@/components/admin/settings-fields";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -110,7 +112,7 @@ function ProviderCard({
           label="Enabled"
           checked={form.enabled}
           onChange={(v) => setForm({ ...form, enabled: v })}
-          description={`When disabled, ${provider.name} provisioning will not run.`}
+          description="When disabled, this provider will not provision new services."
         />
         <div className="space-y-2">
           <Label>API URL</Label>
@@ -121,6 +123,7 @@ function ProviderCard({
             value={form.baseUrl}
             onChange={(e) => setForm({ ...form, baseUrl: e.target.value })}
           />
+          <FieldHint>Panel API base URL including https://</FieldHint>
         </div>
         {showNode ? (
           <div className="space-y-2">
@@ -149,6 +152,9 @@ function ProviderCard({
             value={form.apiKey}
             onChange={(e) => setForm({ ...form, apiKey: e.target.value })}
           />
+          <FieldHint>
+            Panel API key with permission to create servers/VMs.
+          </FieldHint>
         </div>
         <div className="flex flex-wrap gap-2 pt-2">
           <Button
@@ -296,12 +302,10 @@ export default function AdminProvidersPage() {
 
   return (
     <PageMotion>
-      <div className="mb-6">
-        <h1 className="text-2xl font-semibold">Providers</h1>
-        <p className="text-sm text-muted-foreground">
-          Configure provisioning providers
-        </p>
-      </div>
+      <PageHeader
+        title="Providers"
+        description="Connect Pterodactyl, Proxmox, or noop for provisioning."
+      />
 
       {isLoading ? (
         <p className="text-muted-foreground">Loading...</p>

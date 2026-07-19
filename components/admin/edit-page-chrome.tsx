@@ -7,6 +7,7 @@ import { PageMotion } from "@/components/motion";
 
 export function EditPageChrome({
   title,
+  description,
   backHref,
   backLabel = "Back",
   children,
@@ -23,6 +24,7 @@ export function EditPageChrome({
   deleting,
 }: {
   title: string;
+  description?: string;
   backHref: string;
   backLabel?: string;
   children: React.ReactNode;
@@ -43,7 +45,12 @@ export function EditPageChrome({
       <div className="mb-6 flex flex-wrap items-start justify-between gap-3">
         <div>
           <h1 className="text-2xl font-semibold">{title}</h1>
-          <p className="text-sm text-muted-foreground">
+          {description ? (
+            <p className="mt-1 max-w-2xl text-sm text-muted-foreground">
+              {description}
+            </p>
+          ) : null}
+          <p className="mt-1 text-sm text-muted-foreground">
             <Link href={backHref} className="underline">
               {backLabel}
             </Link>

@@ -4,6 +4,8 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { PageMotion } from "@/components/motion";
 import { apiFetch, useApiQuery } from "@/components/api";
+import { PageHeader } from "@/components/admin/page-header";
+import { EmptyState } from "@/components/admin/empty-state";
 import { Button } from "@/components/ui/button";
 import {
   Table,
@@ -58,15 +60,23 @@ export default function AdminAffiliatesPage() {
 
   return (
     <PageMotion>
-      <h1 className="mb-6 text-2xl font-semibold">Affiliates</h1>
-      <Card>
-        <CardHeader>
-          <CardTitle>Program</CardTitle>
-        </CardHeader>
-        <CardContent>
-          {isLoading ? (
-            <p className="text-muted-foreground">Loading...</p>
-          ) : (
+      <PageHeader
+        title="Affiliates"
+        description="Referral partners and commission tracking."
+      />
+      {isLoading ? (
+        <p className="text-muted-foreground">Loading...</p>
+      ) : data.length === 0 ? (
+        <EmptyState
+          title="No affiliates yet"
+          description="Affiliates are created when you enroll partners."
+        />
+      ) : (
+        <Card>
+          <CardHeader>
+            <CardTitle>Program</CardTitle>
+          </CardHeader>
+          <CardContent>
             <Table>
               <TableHeader>
                 <TableRow>
@@ -130,9 +140,9 @@ export default function AdminAffiliatesPage() {
                 ))}
               </TableBody>
             </Table>
-          )}
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
+      )}
     </PageMotion>
   );
 }

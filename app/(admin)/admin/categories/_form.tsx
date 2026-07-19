@@ -6,6 +6,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { apiFetch, useApiQuery } from "@/components/api";
 import { EditPageChrome } from "@/components/admin/edit-page-chrome";
+import { FieldHint } from "@/components/admin/field-hint";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -166,6 +167,7 @@ export function CategoryFormPage({ mode, categoryNumber }: CategoryFormProps) {
           ? `Edit ${form.name || category?.name || "category"}`
           : "Add category"
       }
+      description="Organize products in the public storefront."
       backHref="/admin/categories"
       backLabel="Back to categories"
       onCancel={() => router.push("/admin/categories")}
@@ -204,6 +206,7 @@ export function CategoryFormPage({ mode, categoryNumber }: CategoryFormProps) {
               value={form.slug}
               onChange={(e) => setSlug(e.target.value)}
             />
+            <FieldHint>Used in store category URLs.</FieldHint>
           </div>
           <div className="space-y-2">
             <Label>Parent category</Label>
@@ -221,6 +224,9 @@ export function CategoryFormPage({ mode, categoryNumber }: CategoryFormProps) {
                 </option>
               ))}
             </select>
+            <FieldHint>
+              Optional parent for nested store navigation.
+            </FieldHint>
           </div>
           <div className="space-y-2">
             <Label>Description</Label>
@@ -258,14 +264,19 @@ export function CategoryFormPage({ mode, categoryNumber }: CategoryFormProps) {
               onChange={(e) => setForm({ ...form, sortOrder: e.target.value })}
             />
           </div>
-          <label className="flex items-center gap-2 text-sm">
-            <input
-              type="checkbox"
-              checked={form.active}
-              onChange={(e) => setForm({ ...form, active: e.target.checked })}
-            />
-            Active
-          </label>
+          <div className="space-y-1">
+            <label className="flex items-center gap-2 text-sm">
+              <input
+                type="checkbox"
+                checked={form.active}
+                onChange={(e) => setForm({ ...form, active: e.target.checked })}
+              />
+              Active
+            </label>
+            <FieldHint>
+              Inactive categories are hidden from the storefront.
+            </FieldHint>
+          </div>
         </CardContent>
       </Card>
     </EditPageChrome>

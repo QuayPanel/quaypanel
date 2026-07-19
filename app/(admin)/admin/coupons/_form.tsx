@@ -6,6 +6,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { apiFetch, useApiQuery } from "@/components/api";
 import { EditPageChrome } from "@/components/admin/edit-page-chrome";
+import { FieldHint } from "@/components/admin/field-hint";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -130,6 +131,7 @@ export function CouponFormPage({ mode, couponNumber }: CouponFormProps) {
           ? `Edit ${form.code || coupon?.code || "coupon"}`
           : "Add coupon"
       }
+      description="Discount codes for checkout (percent or fixed)."
       backHref="/admin/coupons"
       backLabel="Back to coupons"
       onCancel={() => router.push("/admin/coupons")}
@@ -177,6 +179,9 @@ export function CouponFormPage({ mode, couponNumber }: CouponFormProps) {
               <option value="PERCENT">PERCENT</option>
               <option value="FIXED">FIXED (USD)</option>
             </select>
+            <FieldHint>
+              Percent off the subtotal, or a fixed amount in the order currency.
+            </FieldHint>
           </div>
           <div className="space-y-2">
             <Label required>
@@ -188,6 +193,9 @@ export function CouponFormPage({ mode, couponNumber }: CouponFormProps) {
               value={form.value}
               onChange={(e) => setForm({ ...form, value: e.target.value })}
             />
+            <FieldHint>
+              For percent use 1–100; for fixed use a currency amount.
+            </FieldHint>
           </div>
           <div className="space-y-2">
             <Label>Max Uses (Global)</Label>
@@ -197,6 +205,7 @@ export function CouponFormPage({ mode, couponNumber }: CouponFormProps) {
               value={form.maxUses}
               onChange={(e) => setForm({ ...form, maxUses: e.target.value })}
             />
+            <FieldHint>Leave blank for unlimited.</FieldHint>
           </div>
           <div className="space-y-2">
             <Label>Max Uses (Per Client)</Label>
@@ -208,6 +217,7 @@ export function CouponFormPage({ mode, couponNumber }: CouponFormProps) {
                 setForm({ ...form, maxUsesPerClient: e.target.value })
               }
             />
+            <FieldHint>Leave blank for unlimited.</FieldHint>
           </div>
           <label className="flex items-center gap-2 text-sm">
             <input

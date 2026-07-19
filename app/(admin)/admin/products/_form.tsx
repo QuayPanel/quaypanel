@@ -6,6 +6,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { apiFetch, useApiQuery } from "@/components/api";
 import { EditPageChrome } from "@/components/admin/edit-page-chrome";
+import { FieldHint } from "@/components/admin/field-hint";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -335,6 +336,7 @@ export function ProductFormPage({ mode, productNumber }: ProductFormProps) {
           ? `Edit ${form.name || product?.name || "product"}`
           : "Add product"
       }
+      description="Sellable items with plans, pricing, and optional provisioning."
       backHref="/admin/products"
       backLabel="Back to products"
       onCancel={() => router.push("/admin/products")}
@@ -398,6 +400,9 @@ export function ProductFormPage({ mode, productNumber }: ProductFormProps) {
                   value={form.slug}
                   onChange={(e) => setSlug(e.target.value)}
                 />
+                <FieldHint>
+                  URL path segment in the store (e.g. /store/products/your-slug).
+                </FieldHint>
               </div>
               <div className="space-y-2">
                 <Label>Stock</Label>
@@ -407,6 +412,7 @@ export function ProductFormPage({ mode, productNumber }: ProductFormProps) {
                   value={form.stock}
                   onChange={(e) => setForm({ ...form, stock: e.target.value })}
                 />
+                <FieldHint>Leave blank for unlimited inventory.</FieldHint>
               </div>
               <div className="space-y-2">
                 <Label>Per user limit</Label>
@@ -418,6 +424,9 @@ export function ProductFormPage({ mode, productNumber }: ProductFormProps) {
                     setForm({ ...form, perUserLimit: e.target.value })
                   }
                 />
+                <FieldHint>
+                  Max active services per client; blank = unlimited.
+                </FieldHint>
               </div>
               <div className="space-y-2">
                 <Label required>Allow Quantity</Label>
@@ -438,6 +447,9 @@ export function ProductFormPage({ mode, productNumber }: ProductFormProps) {
                   <option value="SEPARATED">Separated</option>
                   <option value="COMBINED">Combined</option>
                 </select>
+                <FieldHint>
+                  How customers can buy multiple quantities of this product.
+                </FieldHint>
               </div>
               <div className="space-y-2">
                 <Label>Category</Label>
@@ -495,6 +507,10 @@ export function ProductFormPage({ mode, productNumber }: ProductFormProps) {
                   <option value="pterodactyl">Pterodactyl</option>
                   <option value="proxmox">Proxmox VE</option>
                 </select>
+                <FieldHint>
+                  Which provider creates the service after payment (noop logs
+                  only).
+                </FieldHint>
               </div>
               <label className="flex items-center gap-2 text-sm">
                 <input
@@ -602,6 +618,9 @@ export function ProductFormPage({ mode, productNumber }: ProductFormProps) {
                           <option value="ONE_TIME">One Time</option>
                           <option value="RECURRING">Recurring</option>
                         </select>
+                        <FieldHint>
+                          FREE / ONE_TIME / RECURRING billing behavior.
+                        </FieldHint>
                       </div>
                       {plan.type === "RECURRING" && (
                         <>
@@ -634,6 +653,9 @@ export function ProductFormPage({ mode, productNumber }: ProductFormProps) {
                               <option value="MONTH">Month</option>
                               <option value="YEAR">Year</option>
                             </select>
+                            <FieldHint>
+                              How often recurring plans renew.
+                            </FieldHint>
                           </div>
                         </>
                       )}
@@ -647,13 +669,10 @@ export function ProductFormPage({ mode, productNumber }: ProductFormProps) {
                             updatePlan(plan.key, { price: e.target.value })
                           }
                         />
-                        <p className="text-xs text-muted-foreground">
-                          Plain amount or a formula using placeholders like{" "}
-                          <code className="text-xs">{"{server.memory}"}</code>.
-                          Operators: + - * / and parentheses. Evaluated from
-                          Server tab defaults and customer config options at
-                          checkout.
-                        </p>
+                        <FieldHint>
+                          Fixed amount in major currency units, or a formula
+                          using config placeholders.
+                        </FieldHint>
                       </div>
                       <div className="space-y-2">
                         <Label>Currency</Label>
@@ -677,6 +696,10 @@ export function ProductFormPage({ mode, productNumber }: ProductFormProps) {
                             updatePlan(plan.key, { setupFee: e.target.value })
                           }
                         />
+                        <FieldHint>
+                          One-time fee charged at purchase in addition to the
+                          plan price.
+                        </FieldHint>
                       </div>
                     </div>
                   </div>

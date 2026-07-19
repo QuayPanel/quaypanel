@@ -3,6 +3,8 @@
 import Link from "next/link";
 import { PageMotion } from "@/components/motion";
 import { useApiQuery } from "@/components/api";
+import { PageHeader } from "@/components/admin/page-header";
+import { EmptyState } from "@/components/admin/empty-state";
 import { Button } from "@/components/ui/button";
 import {
   Table,
@@ -34,15 +36,23 @@ export default function AdminOrdersPage() {
 
   return (
     <PageMotion>
-      <h1 className="mb-6 text-2xl font-semibold">Orders</h1>
-      <Card>
-        <CardHeader>
-          <CardTitle>All orders</CardTitle>
-        </CardHeader>
-        <CardContent>
-          {isLoading ? (
-            <p className="text-muted-foreground">Loading...</p>
-          ) : (
+      <PageHeader
+        title="Orders"
+        description="Checkout submissions from the storefront."
+      />
+      {isLoading ? (
+        <p className="text-muted-foreground">Loading...</p>
+      ) : data.length === 0 ? (
+        <EmptyState
+          title="No orders yet"
+          description="Orders appear after customers complete checkout."
+        />
+      ) : (
+        <Card>
+          <CardHeader>
+            <CardTitle>All orders</CardTitle>
+          </CardHeader>
+          <CardContent>
             <Table>
               <TableHeader>
                 <TableRow>
@@ -82,9 +92,9 @@ export default function AdminOrdersPage() {
                 ))}
               </TableBody>
             </Table>
-          )}
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
+      )}
     </PageMotion>
   );
 }

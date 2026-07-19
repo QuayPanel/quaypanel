@@ -16,6 +16,7 @@ import {
   ProxyChipList,
   ToggleField,
 } from "@/components/admin/settings-fields";
+import { FieldHint } from "@/components/admin/field-hint";
 import { DEFAULT_THEME_COLORS } from "@/src/domains/settings/defaults";
 
 type SettingsMap = Record<string, unknown>;
@@ -233,6 +234,9 @@ export default function AdminSettingsPage() {
                     }
                   }}
                 />
+                <FieldHint>
+                  Shown in the storefront header and customer area navigation.
+                </FieldHint>
                 {str(form["brand.logoUrl"]) ? (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img
@@ -260,6 +264,9 @@ export default function AdminSettingsPage() {
                     }
                   }}
                 />
+                <FieldHint>
+                  Browser tab icon for the storefront and admin panel.
+                </FieldHint>
               </div>
               <div className="space-y-2">
                 <Label required>System email address</Label>
@@ -332,6 +339,10 @@ export default function AdminSettingsPage() {
                   values={proxies}
                   onChange={(next) => set("security.trustedProxies", next)}
                 />
+                <FieldHint>
+                  Proxy IPs or CIDRs trusted for X-Forwarded-For client IP
+                  detection.
+                </FieldHint>
               </div>
             </CardContent>
           </Card>
@@ -393,6 +404,9 @@ export default function AdminSettingsPage() {
           <Card>
             <CardHeader>
               <CardTitle>Tax</CardTitle>
+              <FieldHint>
+                Exclusive adds tax on top; inclusive embeds it in prices.
+              </FieldHint>
             </CardHeader>
             <CardContent className="space-y-4">
               <ToggleField
@@ -431,6 +445,9 @@ export default function AdminSettingsPage() {
           <Card>
             <CardHeader>
               <CardTitle>Mail</CardTitle>
+              <FieldHint>
+                SMTP is required for invoice and ticket emails in production.
+              </FieldHint>
             </CardHeader>
             <CardContent className="grid gap-4 md:grid-cols-2">
               <div className="md:col-span-2">
@@ -551,6 +568,9 @@ export default function AdminSettingsPage() {
           <Card>
             <CardHeader>
               <CardTitle>Cronjob</CardTitle>
+              <FieldHint>
+                Daily job time for renewals and overdue suspensions.
+              </FieldHint>
             </CardHeader>
             <CardContent className="grid gap-4 md:grid-cols-2">
               <div className="space-y-2 md:col-span-2">

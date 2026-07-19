@@ -3,6 +3,8 @@
 import Link from "next/link";
 import { PageMotion } from "@/components/motion";
 import { useApiQuery } from "@/components/api";
+import { PageHeader } from "@/components/admin/page-header";
+import { EmptyState } from "@/components/admin/empty-state";
 import { Button } from "@/components/ui/button";
 import {
   Table,
@@ -35,15 +37,23 @@ export default function AdminPaymentsPage() {
 
   return (
     <PageMotion>
-      <h1 className="mb-6 text-2xl font-semibold">Payments</h1>
-      <Card>
-        <CardHeader>
-          <CardTitle>All payments</CardTitle>
-        </CardHeader>
-        <CardContent>
-          {isLoading ? (
-            <p className="text-muted-foreground">Loading...</p>
-          ) : (
+      <PageHeader
+        title="Payments"
+        description="Gateway and manual payment records."
+      />
+      {isLoading ? (
+        <p className="text-muted-foreground">Loading...</p>
+      ) : data.length === 0 ? (
+        <EmptyState
+          title="No payments yet"
+          description="Payments appear when invoices are paid."
+        />
+      ) : (
+        <Card>
+          <CardHeader>
+            <CardTitle>All payments</CardTitle>
+          </CardHeader>
+          <CardContent>
             <Table>
               <TableHeader>
                 <TableRow>
@@ -80,9 +90,9 @@ export default function AdminPaymentsPage() {
                 ))}
               </TableBody>
             </Table>
-          )}
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
+      )}
     </PageMotion>
   );
 }

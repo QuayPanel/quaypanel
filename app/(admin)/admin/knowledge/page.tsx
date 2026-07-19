@@ -7,6 +7,8 @@ import { GripVertical, FolderPlus, Pencil, Plus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { PageMotion } from "@/components/motion";
 import { apiFetch, useApiQuery } from "@/components/api";
+import { PageHeader } from "@/components/admin/page-header";
+import { EmptyState } from "@/components/admin/empty-state";
 import { useDeferredSearch } from "@/components/use-deferred-search";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -495,22 +497,20 @@ export default function AdminKnowledgePage() {
 
   return (
     <PageMotion>
-      <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-semibold">Knowledge base</h1>
-          <p className="text-sm text-muted-foreground">
-            Categories, help articles, and search for clients and the store
-          </p>
-        </div>
-        <div className="flex flex-wrap gap-2">
-          <Button variant="outline" onClick={() => openCreateCategory(null)}>
-            New category
-          </Button>
-          <Button asChild>
-            <Link href="/admin/knowledge/new">New article</Link>
-          </Button>
-        </div>
-      </div>
+      <PageHeader
+        title="Knowledge base"
+        description="Help articles and categories for /docs."
+        actions={
+          <>
+            <Button variant="outline" onClick={() => openCreateCategory(null)}>
+              New category
+            </Button>
+            <Button asChild>
+              <Link href="/admin/knowledge/new">New article</Link>
+            </Button>
+          </>
+        }
+      />
 
       <div className="mb-6">
         <Input
@@ -573,10 +573,12 @@ export default function AdminKnowledgePage() {
         )
       ) : !tree ||
         (tree.categories.length === 0 && tree.uncategorized.length === 0) ? (
-        <p className="text-muted-foreground">
-          No categories or articles yet. Create a category or article to get
-          started.
-        </p>
+        <EmptyState
+          title="No articles yet"
+          description="Create a category or article to build your help docs."
+          actionHref="/admin/knowledge/new"
+          actionLabel="New article"
+        />
       ) : (
         <div className="space-y-6">
           {tree.categories.length > 0

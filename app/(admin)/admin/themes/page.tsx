@@ -5,6 +5,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { PageMotion } from "@/components/motion";
 import { apiFetch, useApiQuery } from "@/components/api";
+import { PageHeader } from "@/components/admin/page-header";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -58,12 +59,10 @@ export default function AdminThemesPage() {
 
   return (
     <PageMotion>
-      <div className="mb-6">
-        <h1 className="text-2xl font-semibold">Themes</h1>
-        <p className="text-sm text-muted-foreground">
-          Select and register theme packages for this installation
-        </p>
-      </div>
+      <PageHeader
+        title="Themes"
+        description="Theme packages and active theme selection."
+      />
 
       {isLoading ? (
         <p className="text-muted-foreground">Loading...</p>

@@ -5,6 +5,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { PageMotion } from "@/components/motion";
 import { apiFetch, useApiQuery } from "@/components/api";
+import { PageHeader } from "@/components/admin/page-header";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -51,12 +52,10 @@ export default function AdminPluginsPage() {
 
   return (
     <PageMotion>
-      <div className="mb-6">
-        <h1 className="text-2xl font-semibold">Plugins</h1>
-        <p className="text-sm text-muted-foreground">
-          Track filesystem / npm plugin packages and install lifecycle flags
-        </p>
-      </div>
+      <PageHeader
+        title="Plugins"
+        description="Payment and provisioning plugin packages."
+      />
 
       {isLoading ? (
         <p className="text-muted-foreground">Loading...</p>

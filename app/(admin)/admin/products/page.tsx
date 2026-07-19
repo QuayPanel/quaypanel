@@ -6,6 +6,8 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { PageMotion } from "@/components/motion";
 import { apiFetch, useApiQuery } from "@/components/api";
+import { PageHeader } from "@/components/admin/page-header";
+import { EmptyState } from "@/components/admin/empty-state";
 import { Button } from "@/components/ui/button";
 import {
   Table,
@@ -58,34 +60,44 @@ export default function AdminProductsPage() {
 
   return (
     <PageMotion>
-      <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
-        <h1 className="text-2xl font-semibold">Products</h1>
-        <div className="flex gap-2">
-          {selected.length > 0 && (
-            <Button
-              variant="destructive"
-              onClick={() => {
-                setPendingDeleteIds(selected);
-                setConfirmOpen(true);
-              }}
-            >
-              Delete selected ({selected.length})
+      <PageHeader
+        title="Products"
+        description="Sellable items with plans, pricing, and optional provisioning."
+        actions={
+          <>
+            {selected.length > 0 && (
+              <Button
+                variant="destructive"
+                onClick={() => {
+                  setPendingDeleteIds(selected);
+                  setConfirmOpen(true);
+                }}
+              >
+                Delete selected ({selected.length})
+              </Button>
+            )}
+            <Button asChild>
+              <Link href="/admin/products/new">Add product</Link>
             </Button>
-          )}
-          <Button asChild>
-            <Link href="/admin/products/new">Add product</Link>
-          </Button>
-        </div>
-      </div>
+          </>
+        }
+      />
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Catalog</CardTitle>
-        </CardHeader>
-        <CardContent>
-          {isLoading ? (
-            <p className="text-muted-foreground">Loading...</p>
-          ) : (
+      {isLoading ? (
+        <p className="text-muted-foreground">Loading...</p>
+      ) : data.length === 0 ? (
+        <EmptyState
+          title="No products yet"
+          description="Add a product and at least one plan to start selling."
+          actionHref="/admin/products/new"
+          actionLabel="Add product"
+        />
+      ) : (
+        <Card>
+          <CardHeader>
+            <CardTitle>Catalog</CardTitle>
+          </CardHeader>
+          <CardContent>
             <Table>
               <TableHeader>
                 <TableRow>
@@ -151,9 +163,9 @@ export default function AdminProductsPage() {
                 ))}
               </TableBody>
             </Table>
-          )}
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
+      )}
 
       <ConfirmDialog
         open={confirmOpen}

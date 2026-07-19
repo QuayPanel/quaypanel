@@ -6,6 +6,8 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { PageMotion } from "@/components/motion";
 import { apiFetch, useApiQuery } from "@/components/api";
+import { PageHeader } from "@/components/admin/page-header";
+import { EmptyState } from "@/components/admin/empty-state";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -56,7 +58,10 @@ export default function AdminClientsPage() {
 
   return (
     <PageMotion>
-      <h1 className="mb-6 text-2xl font-semibold">Clients</h1>
+      <PageHeader
+        title="Clients"
+        description="Customer accounts linked to orders, invoices, and services."
+      />
       <div className="grid gap-6 lg:grid-cols-[320px_1fr]">
         <Card>
           <CardHeader>
@@ -91,14 +96,19 @@ export default function AdminClientsPage() {
           </CardContent>
         </Card>
 
-        <Card>
-          <CardHeader>
-            <CardTitle>All clients</CardTitle>
-          </CardHeader>
-          <CardContent>
-            {isLoading ? (
-              <p className="text-muted-foreground">Loading...</p>
-            ) : (
+        {isLoading ? (
+          <p className="text-muted-foreground">Loading...</p>
+        ) : data.length === 0 ? (
+          <EmptyState
+            title="No clients yet"
+            description="Clients appear when someone registers or you create them."
+          />
+        ) : (
+          <Card>
+            <CardHeader>
+              <CardTitle>All clients</CardTitle>
+            </CardHeader>
+            <CardContent>
               <Table>
                 <TableHeader>
                   <TableRow>
@@ -125,9 +135,9 @@ export default function AdminClientsPage() {
                   ))}
                 </TableBody>
               </Table>
-            )}
-          </CardContent>
-        </Card>
+            </CardContent>
+          </Card>
+        )}
       </div>
     </PageMotion>
   );

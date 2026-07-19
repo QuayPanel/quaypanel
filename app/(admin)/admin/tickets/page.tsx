@@ -3,6 +3,8 @@
 import Link from "next/link";
 import { PageMotion } from "@/components/motion";
 import { useApiQuery } from "@/components/api";
+import { PageHeader } from "@/components/admin/page-header";
+import { EmptyState } from "@/components/admin/empty-state";
 import {
   Table,
   TableBody,
@@ -33,15 +35,23 @@ export default function AdminTicketsPage() {
 
   return (
     <PageMotion>
-      <h1 className="mb-6 text-2xl font-semibold">Tickets</h1>
-      <Card>
-        <CardHeader>
-          <CardTitle>Support queue</CardTitle>
-        </CardHeader>
-        <CardContent>
-          {isLoading ? (
-            <p className="text-muted-foreground">Loading...</p>
-          ) : (
+      <PageHeader
+        title="Tickets"
+        description="Support requests from clients."
+      />
+      {isLoading ? (
+        <p className="text-muted-foreground">Loading...</p>
+      ) : data.length === 0 ? (
+        <EmptyState
+          title="No tickets yet"
+          description="Tickets appear when clients open support requests."
+        />
+      ) : (
+        <Card>
+          <CardHeader>
+            <CardTitle>Support queue</CardTitle>
+          </CardHeader>
+          <CardContent>
             <Table>
               <TableHeader>
                 <TableRow>
@@ -72,9 +82,9 @@ export default function AdminTicketsPage() {
                 ))}
               </TableBody>
             </Table>
-          )}
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
+      )}
     </PageMotion>
   );
 }

@@ -6,6 +6,8 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { PageMotion } from "@/components/motion";
 import { apiFetch, useApiQuery } from "@/components/api";
+import { PageHeader } from "@/components/admin/page-header";
+import { EmptyState } from "@/components/admin/empty-state";
 import { Button } from "@/components/ui/button";
 import {
   Table,
@@ -71,38 +73,44 @@ export default function AdminConfigOptionsPage() {
 
   return (
     <PageMotion>
-      <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
-        <h1 className="text-2xl font-semibold">Config Options</h1>
-        <div className="flex gap-2">
-          {selected.length > 0 && (
-            <Button
-              variant="destructive"
-              onClick={() => {
-                setPendingDeleteIds(selected);
-                setConfirmOpen(true);
-              }}
-            >
-              Delete selected ({selected.length})
+      <PageHeader
+        title="Config options"
+        description="Checkout add-ons customers can choose (RAM, location, etc.) with optional pricing."
+        actions={
+          <>
+            {selected.length > 0 && (
+              <Button
+                variant="destructive"
+                onClick={() => {
+                  setPendingDeleteIds(selected);
+                  setConfirmOpen(true);
+                }}
+              >
+                Delete selected ({selected.length})
+              </Button>
+            )}
+            <Button asChild>
+              <Link href="/admin/config-options/new">New config option</Link>
             </Button>
-          )}
-          <Button asChild>
-            <Link href="/admin/config-options/new">New config option</Link>
-          </Button>
-        </div>
-      </div>
+          </>
+        }
+      />
 
-      <Card>
-        <CardHeader>
-          <CardTitle>All config options</CardTitle>
-        </CardHeader>
-        <CardContent>
-          {isLoading ? (
-            <p className="text-muted-foreground">Loading...</p>
-          ) : data.length === 0 ? (
-            <p className="text-sm text-muted-foreground">
-              No config options yet.
-            </p>
-          ) : (
+      {isLoading ? (
+        <p className="text-muted-foreground">Loading...</p>
+      ) : data.length === 0 ? (
+        <EmptyState
+          title="No config options yet"
+          description="Create reusable options and attach them to products."
+          actionHref="/admin/config-options/new"
+          actionLabel="Add option"
+        />
+      ) : (
+        <Card>
+          <CardHeader>
+            <CardTitle>All config options</CardTitle>
+          </CardHeader>
+          <CardContent>
             <Table>
               <TableHeader>
                 <TableRow>
@@ -177,9 +185,9 @@ export default function AdminConfigOptionsPage() {
                 ))}
               </TableBody>
             </Table>
-          )}
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
+      )}
 
       <ConfirmDialog
         open={confirmOpen}

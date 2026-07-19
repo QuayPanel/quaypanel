@@ -2,6 +2,8 @@
 
 import { PageMotion } from "@/components/motion";
 import { useApiQuery } from "@/components/api";
+import { PageHeader } from "@/components/admin/page-header";
+import { EmptyState } from "@/components/admin/empty-state";
 import {
   Table,
   TableBody,
@@ -29,15 +31,23 @@ export default function AdminAuditPage() {
 
   return (
     <PageMotion>
-      <h1 className="mb-6 text-2xl font-semibold">Audit log</h1>
-      <Card>
-        <CardHeader>
-          <CardTitle>Recent activity</CardTitle>
-        </CardHeader>
-        <CardContent>
-          {isLoading ? (
-            <p className="text-muted-foreground">Loading...</p>
-          ) : (
+      <PageHeader
+        title="Audit log"
+        description="Security and admin action history."
+      />
+      {isLoading ? (
+        <p className="text-muted-foreground">Loading...</p>
+      ) : data.length === 0 ? (
+        <EmptyState
+          title="No audit entries yet"
+          description="Admin and security actions will appear here as they happen."
+        />
+      ) : (
+        <Card>
+          <CardHeader>
+            <CardTitle>Recent activity</CardTitle>
+          </CardHeader>
+          <CardContent>
             <Table>
               <TableHeader>
                 <TableRow>
@@ -65,9 +75,9 @@ export default function AdminAuditPage() {
                 ))}
               </TableBody>
             </Table>
-          )}
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
+      )}
     </PageMotion>
   );
 }

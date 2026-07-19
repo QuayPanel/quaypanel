@@ -6,6 +6,8 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { PageMotion } from "@/components/motion";
 import { apiFetch, useApiQuery } from "@/components/api";
+import { PageHeader } from "@/components/admin/page-header";
+import { EmptyState } from "@/components/admin/empty-state";
 import { Button } from "@/components/ui/button";
 import {
   Table,
@@ -64,34 +66,44 @@ export default function AdminCouponsPage() {
 
   return (
     <PageMotion>
-      <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
-        <h1 className="text-2xl font-semibold">Coupons</h1>
-        <div className="flex gap-2">
-          {selected.length > 0 && (
-            <Button
-              variant="destructive"
-              onClick={() => {
-                setPendingDeleteIds(selected);
-                setConfirmOpen(true);
-              }}
-            >
-              Delete selected ({selected.length})
+      <PageHeader
+        title="Coupons"
+        description="Discount codes for checkout (percent or fixed)."
+        actions={
+          <>
+            {selected.length > 0 && (
+              <Button
+                variant="destructive"
+                onClick={() => {
+                  setPendingDeleteIds(selected);
+                  setConfirmOpen(true);
+                }}
+              >
+                Delete selected ({selected.length})
+              </Button>
+            )}
+            <Button asChild>
+              <Link href="/admin/coupons/new">Add coupon</Link>
             </Button>
-          )}
-          <Button asChild>
-            <Link href="/admin/coupons/new">Add coupon</Link>
-          </Button>
-        </div>
-      </div>
+          </>
+        }
+      />
 
-      <Card>
-        <CardHeader>
-          <CardTitle>All coupons</CardTitle>
-        </CardHeader>
-        <CardContent>
-          {isLoading ? (
-            <p className="text-muted-foreground">Loading...</p>
-          ) : (
+      {isLoading ? (
+        <p className="text-muted-foreground">Loading...</p>
+      ) : data.length === 0 ? (
+        <EmptyState
+          title="No coupons yet"
+          description="Create a coupon to offer discounts at checkout."
+          actionHref="/admin/coupons/new"
+          actionLabel="Add coupon"
+        />
+      ) : (
+        <Card>
+          <CardHeader>
+            <CardTitle>All coupons</CardTitle>
+          </CardHeader>
+          <CardContent>
             <Table>
               <TableHeader>
                 <TableRow>
@@ -171,9 +183,9 @@ export default function AdminCouponsPage() {
                 ))}
               </TableBody>
             </Table>
-          )}
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
+      )}
 
       <ConfirmDialog
         open={confirmOpen}

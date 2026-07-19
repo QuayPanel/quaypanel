@@ -7,6 +7,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { apiFetch, useApiQuery } from "@/components/api";
 import { EditPageChrome } from "@/components/admin/edit-page-chrome";
+import { FieldHint } from "@/components/admin/field-hint";
 import { ToggleField } from "@/components/admin/settings-fields";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -252,6 +253,7 @@ export function ConfigOptionFormPage({
           ? `Edit ${form.name || option?.name || "config option"}`
           : "New config option"
       }
+      description="Checkout add-ons customers can choose with optional pricing."
       backHref="/admin/config-options"
       backLabel="Back to config options"
       onCancel={() => router.push("/admin/config-options")}
@@ -329,15 +331,9 @@ export function ConfigOptionFormPage({
                   value={form.envKey}
                   onChange={(e) => setForm({ ...form, envKey: e.target.value })}
                 />
-                <p className="text-xs text-muted-foreground">
-                  Pterodactyl egg env name (e.g.{" "}
-                  <code className="text-xs">SERVER_JARFILE</code>), or a reserved
-                  provision key such as <code className="text-xs">eggId</code>,{" "}
-                  <code className="text-xs">nestId</code>,{" "}
-                  <code className="text-xs">memory</code>, or{" "}
-                  <code className="text-xs">dockerImage</code> to override the
-                  product Server tab defaults at checkout.
-                </p>
+                <FieldHint>
+                  Key passed to provisioning (e.g. SERVER_MEMORY).
+                </FieldHint>
               </div>
               <div className="space-y-2">
                 <Label required>Type</Label>
@@ -358,6 +354,9 @@ export function ConfigOptionFormPage({
                   <option value="CHECKBOX">Checkbox</option>
                   <option value="SLIDER">Slider</option>
                 </select>
+                <FieldHint>
+                  Controls the checkout UI control for this option.
+                </FieldHint>
               </div>
               <div className="space-y-2">
                 <Label>Sort order</Label>
@@ -378,12 +377,17 @@ export function ConfigOptionFormPage({
                 checked={form.hidden}
                 onChange={(v) => setForm({ ...form, hidden: v })}
               />
-              <ProductMultiSelect
-                label="Products"
-                products={allProducts}
-                selectedIds={productIds}
-                onChange={setProductIds}
-              />
+              <div className="space-y-2">
+                <ProductMultiSelect
+                  label="Products"
+                  products={allProducts}
+                  selectedIds={productIds}
+                  onChange={setProductIds}
+                />
+                <FieldHint>
+                  Which products show this option at configure/checkout.
+                </FieldHint>
+              </div>
             </CardContent>
           </Card>
         </TabsContent>
@@ -497,17 +501,17 @@ export function ConfigOptionFormPage({
                                 })
                               }
                             />
-                            <p className="text-xs text-muted-foreground">
-                              Value written when this choice is selected (e.g.
-                              panel egg id <code className="text-xs">15</code>{" "}
-                              when the option key is{" "}
-                              <code className="text-xs">eggId</code>).
-                            </p>
+                            <FieldHint>
+                              Value sent when this choice is selected.
+                            </FieldHint>
                           </div>
                         </div>
 
                         <div className="space-y-3 rounded-md border border-dashed p-3">
                           <p className="text-sm font-medium">Pricing</p>
+                          <FieldHint>
+                            Extra charge when the customer picks this choice.
+                          </FieldHint>
                           <div className="grid gap-3 md:grid-cols-2">
                             <div className="space-y-2">
                               <Label required>Name</Label>

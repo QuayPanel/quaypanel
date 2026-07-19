@@ -172,7 +172,7 @@ pm2 restart quaypanel-web quaypanel-worker
 ### Phase 2 notes
 
 - Affiliate tracking cookie: visit `/r/<code>` then convert via store checkout
-- Sample coupon from seed: `WELCOME10` (10% off)
+- Catalog starts empty - create categories, products, plans, and coupons under Admin
 - Configure Pterodactyl / Proxmox under Admin → Providers; set product `provisionProvider` accordingly
 - Worker schedules renewals (cron time/timezone from settings) and suspends past grace
 - Knowledge base: Admin → Knowledge base; public at `/docs`

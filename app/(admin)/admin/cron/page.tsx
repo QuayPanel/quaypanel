@@ -13,6 +13,8 @@ import {
 } from "recharts";
 import { PageMotion } from "@/components/motion";
 import { useApiQuery } from "@/components/api";
+import { PageHeader } from "@/components/admin/page-header";
+import { EmptyState } from "@/components/admin/empty-state";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 
@@ -95,41 +97,47 @@ export default function AdminCronPage() {
     },
   ];
 
+  const hasRuns = Boolean(data?.lastCronRun || data?.lastSchedulerRun);
+
   return (
     <PageMotion>
-      <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight">
-            Cron Statistics
-          </h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Scheduler and daily cron activity
-            {data?.cronTime
-              ? ` · daily at ${data.cronTime} (${data.timezone})`
-              : ""}
-          </p>
-        </div>
-        <div className="space-y-2 sm:w-48">
-          <Label htmlFor="cron-range">Period</Label>
-          <select
-            id="cron-range"
-            className="flex h-10 w-full rounded-md border border-input bg-card px-3 text-sm"
-            value={range}
-            onChange={(e) => setRange(e.target.value as CronStatsRange)}
-          >
-            {RANGE_OPTIONS.map((opt) => (
-              <option key={opt.value} value={opt.value}>
-                {opt.label}
-              </option>
-            ))}
-          </select>
-        </div>
-      </div>
+      <PageHeader
+        title="Cron"
+        description={
+          data?.cronTime
+            ? `Renewal and maintenance job history · daily at ${data.cronTime} (${data.timezone})`
+            : "Renewal and maintenance job history."
+        }
+        actions={
+          <div className="space-y-2 sm:w-48">
+            <Label htmlFor="cron-range">Period</Label>
+            <select
+              id="cron-range"
+              className="flex h-10 w-full rounded-md border border-input bg-card px-3 text-sm"
+              value={range}
+              onChange={(e) => setRange(e.target.value as CronStatsRange)}
+            >
+              {RANGE_OPTIONS.map((opt) => (
+                <option key={opt.value} value={opt.value}>
+                  {opt.label}
+                </option>
+              ))}
+            </select>
+          </div>
+        }
+      />
 
       {isLoading && <p className="text-muted-foreground">Loading...</p>}
       {error && <p className="text-destructive">{error.message}</p>}
 
-      {data ? (
+      {!isLoading && data && !hasRuns ? (
+        <EmptyState
+          title="No cron runs yet"
+          description="Renewal and maintenance job history will appear after the scheduler runs."
+        />
+      ) : null}
+
+      {data && hasRuns ? (
         <>
           <div className="mb-6 grid gap-4 sm:grid-cols-3">
             <Card>
