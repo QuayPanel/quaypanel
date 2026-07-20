@@ -15,6 +15,33 @@ export const affiliateEnrollSchema = z.object({
   commissionPercent: z.number().int().min(1).max(50).optional(),
 });
 
+export const affiliateUpdateCodeSchema = z.object({
+  code: z.string().min(3).max(32),
+});
+
+const AFFILIATE_CODE_RE = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
+
+export function normalizeAffiliateCode(raw: string) {
+  return raw.trim().toLowerCase();
+}
+
+export function assertValidAffiliateCode(code: string) {
+  if (code.length < 3 || code.length > 32) {
+    throw new ValidationError("Code must be 3–32 characters");
+  }
+  if (!AFFILIATE_CODE_RE.test(code)) {
+    throw new ValidationError(
+      "Code may only use lowercase letters, numbers, and hyphens",
+    );
+  }
+  if (code.startsWith("aff-") === false && code.includes("--")) {
+    throw new ValidationError("Code cannot contain consecutive hyphens");
+  }
+  if (code.startsWith("-") || code.endsWith("-")) {
+    throw new ValidationError("Code cannot start or end with a hyphen");
+  }
+}
+
 export async function isAffiliatesEnabled() {
   return Boolean(await getSetting("affiliates.enabled", true));
 }
@@ -128,7 +155,8 @@ export async function enrollAffiliate(
   });
   if (existing) throw new ConflictError("Client is already an affiliate");
 
-  const code = (data.code || `aff-${nanoid(8)}`).toLowerCase();
+  const code = normalizeAffiliateCode(data.code || `aff-${nanoid(8)}`);
+  if (data.code) assertValidAffiliateCode(code);
   const taken = await prisma.affiliate.findUnique({ where: { code } });
   if (taken) throw new ConflictError("Affiliate code already taken");
 
@@ -151,6 +179,47 @@ export async function enrollAffiliate(
     entityId: affiliate.id,
   });
   return affiliate;
+}
+
+export async function updateAffiliateCode(
+  clientId: string,
+  rawCode: string,
+  actorId?: string,
+) {
+  if (!(await isAffiliatesEnabled())) {
+    throw new ValidationError("Affiliate system is disabled");
+  }
+
+  const affiliate = await prisma.affiliate.findUnique({ where: { clientId } });
+  if (!affiliate) throw new NotFoundError("Affiliate not found");
+  if (affiliate.status !== "ACTIVE") {
+    throw new ValidationError("Affiliate account is not active");
+  }
+
+  const code = normalizeAffiliateCode(rawCode);
+  assertValidAffiliateCode(code);
+
+  if (code === affiliate.code) {
+    return affiliate;
+  }
+
+  const taken = await prisma.affiliate.findUnique({ where: { code } });
+  if (taken) throw new ConflictError("Affiliate code already taken");
+
+  const updated = await prisma.affiliate.update({
+    where: { id: affiliate.id },
+    data: { code },
+  });
+
+  await writeAuditLog({
+    actorId,
+    action: "affiliate.code_update",
+    entityType: "affiliate",
+    entityId: affiliate.id,
+    metadata: { from: affiliate.code, to: code },
+  });
+
+  return updated;
 }
 
 export async function resolveAffiliateCodeForService(serviceId: string) {
