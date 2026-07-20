@@ -121,7 +121,14 @@ export const settingsDefaults: Record<string, unknown> = {
     apiKey: "",
     node: "pve",
   },
+  "affiliates.enabled": true,
   "affiliates.defaultCommission": 10,
+  "affiliates.repeatEarnings": false,
+  "affiliates.scalingEnabled": false,
+  "affiliates.scalingMilestones": [] as Array<{
+    referrals: number;
+    percent: number;
+  }>,
   "plugins.installed": [] as Array<{
     id: string;
     name: string;
@@ -241,7 +248,18 @@ export const settingsUpdateSchema = z
 
     "provisioning.pterodactyl": z.record(z.string(), z.unknown()).optional(),
     "provisioning.proxmox": z.record(z.string(), z.unknown()).optional(),
+    "affiliates.enabled": optionalBool,
     "affiliates.defaultCommission": optionalInt,
+    "affiliates.repeatEarnings": optionalBool,
+    "affiliates.scalingEnabled": optionalBool,
+    "affiliates.scalingMilestones": z
+      .array(
+        z.object({
+          referrals: z.number().int().min(1),
+          percent: z.number().int().min(0).max(100),
+        }),
+      )
+      .optional(),
     "plugins.installed": z
       .array(
         z.object({
@@ -285,6 +303,7 @@ export const PUBLIC_SETTING_KEYS = [
   "credits.enabled",
   "credits.minDeposit",
   "credits.maxDeposit",
+  "affiliates.enabled",
   "theme.id",
   "theme.packages",
   "theme.directCheckout",

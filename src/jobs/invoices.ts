@@ -4,7 +4,12 @@ import { prisma } from "@/src/db/client";
 import { enqueueEmail } from "@/src/core/queue";
 import { formatMoney } from "@/src/core/utils";
 import { createServicesFromPaidOrder } from "@/src/domains/services/service";
-import { recordAffiliateCommission } from "@/src/domains/affiliates/service";
+import {
+  recordAffiliateCommission,
+  resolveAffiliateCodeForClient,
+  resolveAffiliateCodeForService,
+} from "@/src/domains/affiliates/service";
+import { getSetting } from "@/src/domains/settings/service";
 import { addInterval } from "@/src/domains/billing/pricing";
 import { incrementCouponUses } from "@/src/domains/coupons/service";
 
@@ -54,6 +59,7 @@ export async function processInvoicePaidJob(job: Job<InvoicePaidJobData>) {
       await recordAffiliateCommission({
         affiliateCode: invoice.order.affiliateCode,
         orderId: invoice.orderId,
+        invoiceId: invoice.id,
         referredClientId: invoice.clientId,
         orderTotal: invoice.total,
       });
@@ -75,6 +81,23 @@ export async function processInvoicePaidJob(job: Job<InvoicePaidJobData>) {
           ),
         },
       });
+    }
+
+    const repeatEarnings = Boolean(
+      await getSetting("affiliates.repeatEarnings", false),
+    );
+    if (repeatEarnings) {
+      const affiliateCode =
+        (await resolveAffiliateCodeForService(invoice.serviceId)) ||
+        (await resolveAffiliateCodeForClient(invoice.clientId));
+      if (affiliateCode) {
+        await recordAffiliateCommission({
+          affiliateCode,
+          invoiceId: invoice.id,
+          referredClientId: invoice.clientId,
+          orderTotal: invoice.total,
+        });
+      }
     }
   }
 }

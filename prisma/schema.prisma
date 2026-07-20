@@ -400,6 +400,7 @@ model Invoice {
   updatedAt     DateTime      @updatedAt
   items         InvoiceItem[]
   payments      Payment[]
+  referrals     AffiliateReferral[]
 
   @@map("invoice")
 }
@@ -510,11 +511,15 @@ model AffiliateReferral {
   referredClientId String?
   orderId          String?
   order            Order?         @relation(fields: [orderId], references: [id], onDelete: SetNull)
+  invoiceId        String?
+  invoice          Invoice?       @relation(fields: [invoiceId], references: [id], onDelete: SetNull)
   commissionMinor  Int            @default(0)
   status           ReferralStatus @default(PENDING)
   createdAt        DateTime       @default(now())
   updatedAt        DateTime       @updatedAt
 
+  @@unique([invoiceId])
+  @@index([orderId])
   @@map("affiliate_referral")
 }
 

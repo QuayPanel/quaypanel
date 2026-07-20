@@ -24,6 +24,10 @@ type Affiliate = {
 
 export default function ClientAffiliatesPage() {
   const queryClient = useQueryClient();
+  const { data: settings } = useApiQuery<Record<string, unknown>>(
+    ["public-settings"],
+    "/api/v1/settings?public=1",
+  );
   const { data: me } = useApiQuery<Me>(["me"], "/api/v1/me");
   const { data: affiliate, isLoading } = useApiQuery<Affiliate>(
     ["client-affiliate"],
@@ -51,6 +55,17 @@ export default function ClientAffiliatesPage() {
       : affiliate
         ? `/r/${affiliate.code}`
         : "";
+
+  if (settings && settings["affiliates.enabled"] === false) {
+    return (
+      <PageMotion>
+        <h1 className="mb-6 text-2xl font-semibold">Affiliates</h1>
+        <p className="text-muted-foreground">
+          The affiliate program is currently disabled.
+        </p>
+      </PageMotion>
+    );
+  }
 
   return (
     <PageMotion>

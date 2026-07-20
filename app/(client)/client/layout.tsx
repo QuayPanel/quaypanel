@@ -37,11 +37,20 @@ export default async function ClientLayout({
     redirect("/login");
   }
 
-  const [brandName, logoUrl, logoDisplay] = await Promise.all([
-    getSetting("brand.name", "QuayPanel").then(String),
-    getSetting("brand.logoUrl", "").then((v) => String(v ?? "").trim()),
-    getSetting("theme.logoDisplay", "logo_name").then(String),
-  ]);
+  const [brandName, logoUrl, logoDisplay, affiliatesEnabled, ticketsEnabled] =
+    await Promise.all([
+      getSetting("brand.name", "QuayPanel").then(String),
+      getSetting("brand.logoUrl", "").then((v) => String(v ?? "").trim()),
+      getSetting("theme.logoDisplay", "logo_name").then(String),
+      getSetting("affiliates.enabled", true).then(Boolean),
+      getSetting("tickets.enabled", true).then(Boolean),
+    ]);
+
+  const navLinks = links.filter((link) => {
+    if (!affiliatesEnabled && link.href === "/client/affiliates") return false;
+    if (!ticketsEnabled && link.href === "/client/tickets") return false;
+    return true;
+  });
 
   return (
     <div className="min-h-screen md:grid md:grid-cols-[220px_1fr]">
@@ -56,7 +65,7 @@ export default async function ClientLayout({
           />
         </div>
         <nav className="flex flex-col gap-1 p-3">
-          {links.map((link) => (
+          {navLinks.map((link) => (
             <Link
               key={link.href}
               href={link.href}

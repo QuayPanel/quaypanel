@@ -39,9 +39,14 @@ export default function ClientDashboardPage() {
     ["client-affiliate"],
     "/api/v1/affiliates",
   );
+  const { data: settings } = useApiQuery<Record<string, unknown>>(
+    ["public-settings"],
+    "/api/v1/settings?public=1",
+  );
 
   const unpaid = invoices.filter((i) => i.status === "UNPAID");
   const openTickets = tickets.filter((t) => t.status !== "CLOSED");
+  const affiliatesEnabled = settings?.["affiliates.enabled"] !== false;
 
   return (
     <PageMotion>
@@ -90,7 +95,7 @@ export default function ClientDashboardPage() {
         </Card>
       </div>
 
-      {affiliate && (
+      {affiliatesEnabled && affiliate && (
         <Card className="mt-6">
           <CardHeader>
             <CardTitle>Affiliate</CardTitle>

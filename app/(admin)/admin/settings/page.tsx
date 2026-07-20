@@ -198,6 +198,7 @@ export default function AdminSettingsPage() {
             ["tickets", "Tickets"],
             ["cron", "Cronjob"],
             ["credits", "Credits"],
+            ["affiliates", "Affiliates"],
             ["theme", "Theme"],
             ["fx", "Currency / FX"],
             ["invoices", "Invoices"],
@@ -737,6 +738,174 @@ export default function AdminSettingsPage() {
                     set("credits.maxBalance", Number(e.target.value))
                   }
                 />
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="affiliates">
+          <Card>
+            <CardHeader>
+              <CardTitle>Affiliates</CardTitle>
+              <FieldHint>
+                Control enrollment, commission rates, recurring earnings, and
+                milestone scaling.
+              </FieldHint>
+            </CardHeader>
+            <CardContent className="grid gap-4 md:grid-cols-2">
+              <div className="md:col-span-2 space-y-3">
+                <ToggleField
+                  label="Enable affiliate system"
+                  checked={bool(form["affiliates.enabled"], true)}
+                  onChange={(v) => set("affiliates.enabled", v)}
+                />
+                <ToggleField
+                  label="Repeat earnings on renewals"
+                  checked={bool(form["affiliates.repeatEarnings"])}
+                  onChange={(v) => set("affiliates.repeatEarnings", v)}
+                />
+                <FieldHint>
+                  When enabled, affiliates earn their percentage on each paid
+                  renewal invoice for referred subscribers — not only the first
+                  order.
+                </FieldHint>
+                <ToggleField
+                  label="Enable earning % scaling"
+                  checked={bool(form["affiliates.scalingEnabled"])}
+                  onChange={(v) => set("affiliates.scalingEnabled", v)}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Default earning %</Label>
+                <Input
+                  type="number"
+                  min={0}
+                  max={100}
+                  inputMode="numeric"
+                  value={str(form["affiliates.defaultCommission"], "10")}
+                  onChange={(e) =>
+                    set("affiliates.defaultCommission", Number(e.target.value))
+                  }
+                />
+                <FieldHint>
+                  Used for new enrollments and as the base rate before milestones.
+                </FieldHint>
+              </div>
+              <div className="md:col-span-2 space-y-3">
+                <Label>Scaling milestones</Label>
+                <FieldHint>
+                  When scaling is enabled, the highest matching milestone sets
+                  the earning % (based on unique referred clients).
+                </FieldHint>
+                {(Array.isArray(form["affiliates.scalingMilestones"])
+                  ? (form["affiliates.scalingMilestones"] as Array<{
+                      referrals: number;
+                      percent: number;
+                    }>)
+                  : []
+                ).map((row, index) => (
+                  <div
+                    key={index}
+                    className="flex flex-wrap items-end gap-2 rounded-md border p-3"
+                  >
+                    <div className="space-y-1">
+                      <p className="text-xs text-muted-foreground">
+                        Referrals
+                      </p>
+                      <Input
+                        type="number"
+                        min={1}
+                        className="w-28"
+                        value={String(row.referrals ?? "")}
+                        onChange={(e) => {
+                          const milestones = [
+                            ...(Array.isArray(
+                              form["affiliates.scalingMilestones"],
+                            )
+                              ? (form[
+                                  "affiliates.scalingMilestones"
+                                ] as Array<{
+                                  referrals: number;
+                                  percent: number;
+                                }>)
+                              : []),
+                          ];
+                          milestones[index] = {
+                            ...milestones[index],
+                            referrals: Number(e.target.value),
+                          };
+                          set("affiliates.scalingMilestones", milestones);
+                        }}
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <p className="text-xs text-muted-foreground">
+                        Earning %
+                      </p>
+                      <Input
+                        type="number"
+                        min={0}
+                        max={100}
+                        className="w-28"
+                        value={String(row.percent ?? "")}
+                        onChange={(e) => {
+                          const milestones = [
+                            ...(Array.isArray(
+                              form["affiliates.scalingMilestones"],
+                            )
+                              ? (form[
+                                  "affiliates.scalingMilestones"
+                                ] as Array<{
+                                  referrals: number;
+                                  percent: number;
+                                }>)
+                              : []),
+                          ];
+                          milestones[index] = {
+                            ...milestones[index],
+                            percent: Number(e.target.value),
+                          };
+                          set("affiliates.scalingMilestones", milestones);
+                        }}
+                      />
+                    </div>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => {
+                        const milestones = (
+                          Array.isArray(form["affiliates.scalingMilestones"])
+                            ? (form["affiliates.scalingMilestones"] as Array<{
+                                referrals: number;
+                                percent: number;
+                              }>)
+                            : []
+                        ).filter((_, i) => i !== index);
+                        set("affiliates.scalingMilestones", milestones);
+                      }}
+                    >
+                      Remove
+                    </Button>
+                  </div>
+                ))}
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => {
+                    const milestones = [
+                      ...(Array.isArray(form["affiliates.scalingMilestones"])
+                        ? (form["affiliates.scalingMilestones"] as Array<{
+                            referrals: number;
+                            percent: number;
+                          }>)
+                        : []),
+                      { referrals: 100, percent: 15 },
+                    ];
+                    set("affiliates.scalingMilestones", milestones);
+                  }}
+                >
+                  Add milestone
+                </Button>
               </div>
             </CardContent>
           </Card>

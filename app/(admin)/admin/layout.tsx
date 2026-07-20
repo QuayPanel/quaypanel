@@ -125,6 +125,9 @@ export default async function AdminLayout({
   }
 
   const ticketsEnabled = Boolean(await getSetting("tickets.enabled", true));
+  const affiliatesEnabled = Boolean(
+    await getSetting("affiliates.enabled", true),
+  );
   const brand = String(await getSetting("brand.name", "QuayPanel"));
   const logoUrl = String(await getSetting("brand.logoUrl", "")).trim();
   const logoDisplay = String(
@@ -133,9 +136,13 @@ export default async function AdminLayout({
   const groups = navGroups
     .map((group) => ({
       ...group,
-      links: group.links.filter(
-        (link) => ticketsEnabled || link.href !== "/admin/tickets",
-      ),
+      links: group.links.filter((link) => {
+        if (!ticketsEnabled && link.href === "/admin/tickets") return false;
+        if (!affiliatesEnabled && link.href === "/admin/affiliates") {
+          return false;
+        }
+        return true;
+      }),
     }))
     .filter((group) => group.links.length > 0);
 

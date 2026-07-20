@@ -82,7 +82,11 @@ async function main() {
     { key: "cron.time", value: "00:00" },
     { key: "tickets.enabled", value: true },
     { key: "provisioning.pterodactyl", value: { enabled: false, baseUrl: "", apiKey: "" } },
+    { key: "affiliates.enabled", value: true },
     { key: "affiliates.defaultCommission", value: 10 },
+    { key: "affiliates.repeatEarnings", value: false },
+    { key: "affiliates.scalingEnabled", value: false },
+    { key: "affiliates.scalingMilestones", value: [] },
   ];
 
   for (const setting of defaults) {
