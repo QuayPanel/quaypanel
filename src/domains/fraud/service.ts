@@ -89,7 +89,8 @@ function normalizeBlockValue(type: FraudBlockType, value: string) {
     return trimmed.replace(/^@/, "").toLowerCase();
   }
   if (type === "country") {
-    return trimmed.toUpperCase();
+    // Match profile country names (case-insensitive compare uses uppercase).
+    return trimmed;
   }
   return trimmed;
 }
@@ -131,7 +132,7 @@ export async function checkClientBlocked(params: {
     if (
       block.type === "country" &&
       params.country &&
-      block.value === params.country.trim().toUpperCase()
+      block.value.trim().toLowerCase() === params.country.trim().toLowerCase()
     ) {
       reasons.push(`country:${block.value}`);
     }

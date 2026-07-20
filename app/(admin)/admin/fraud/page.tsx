@@ -9,6 +9,7 @@ import { PageHeader } from "@/components/admin/page-header";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { CountrySelect } from "@/components/ui/country-select";
 import {
   Table,
   TableBody,
@@ -124,7 +125,11 @@ export default function AdminFraudPage() {
                   className="flex h-10 w-full rounded-md border border-input bg-card px-3 text-sm"
                   value={blockForm.type}
                   onChange={(e) =>
-                    setBlockForm((f) => ({ ...f, type: e.target.value }))
+                    setBlockForm((f) => ({
+                      ...f,
+                      type: e.target.value,
+                      value: "",
+                    }))
                   }
                 >
                   <option value="ip">IP</option>
@@ -134,15 +139,26 @@ export default function AdminFraudPage() {
               </div>
               <div className="space-y-2 sm:col-span-2">
                 <Label>Value</Label>
-                <Input
-                  value={blockForm.value}
-                  onChange={(e) =>
-                    setBlockForm((f) => ({ ...f, value: e.target.value }))
-                  }
-                  placeholder={
-                    blockForm.type === "country" ? "US" : "example.com"
-                  }
-                />
+                {blockForm.type === "country" ? (
+                  <CountrySelect
+                    value={blockForm.value}
+                    onChange={(value) =>
+                      setBlockForm((f) => ({ ...f, value }))
+                    }
+                  />
+                ) : (
+                  <Input
+                    value={blockForm.value}
+                    onChange={(e) =>
+                      setBlockForm((f) => ({ ...f, value: e.target.value }))
+                    }
+                    placeholder={
+                      blockForm.type === "ip"
+                        ? "203.0.113.10"
+                        : "example.com"
+                    }
+                  />
+                )}
               </div>
             </div>
             <div className="space-y-2">
