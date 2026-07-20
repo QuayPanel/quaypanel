@@ -1082,12 +1082,17 @@ export default function AdminSettingsPage() {
             </CardHeader>
             <CardContent className="grid gap-4 md:grid-cols-2">
               <div className="space-y-2 md:col-span-2">
-                <Label>Bill to text</Label>
+                <Label>From / company details</Label>
                 <textarea
                   className="min-h-24 w-full rounded-md border border-input bg-card px-3 py-2 text-sm"
                   value={str(form["invoice.billTo"])}
                   onChange={(e) => set("invoice.billTo", e.target.value)}
+                  placeholder={"Example LLC\n123 Main St\nCity, ST 00000"}
                 />
+                <p className="text-xs text-muted-foreground">
+                  Shown as the seller “From” block on invoice PDFs. Bill to is
+                  always the client on the invoice.
+                </p>
               </div>
               <div className="space-y-2">
                 <Label required>Next invoice number</Label>

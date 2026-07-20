@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -59,13 +60,11 @@ export default function ClientInvoiceDetailPage() {
         <h1 className="text-2xl font-semibold">Invoice {invoice.number}</h1>
         <div className="flex items-center gap-2">
           <Button asChild variant="outline" size="sm">
-            <a
-              href={`/api/v1/invoices/${encodeURIComponent(invoice.number)}/pdf`}
-              target="_blank"
-              rel="noreferrer"
+            <Link
+              href={`/client/invoices/${encodeURIComponent(invoice.number)}/pdf`}
             >
-              Download PDF
-            </a>
+              View PDF
+            </Link>
           </Button>
           <Badge>{invoice.status}</Badge>
         </div>

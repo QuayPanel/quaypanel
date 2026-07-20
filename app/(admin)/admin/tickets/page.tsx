@@ -38,13 +38,20 @@ export default function AdminTicketsPage() {
       <PageHeader
         title="Tickets"
         description="Support requests from clients."
+        actions={
+          <Button asChild>
+            <Link href="/admin/tickets/new">New ticket</Link>
+          </Button>
+        }
       />
       {isLoading ? (
         <p className="text-muted-foreground">Loading...</p>
       ) : data.length === 0 ? (
         <EmptyState
           title="No tickets yet"
-          description="Tickets appear when clients open support requests."
+          description="Create a ticket for a client, or wait for clients to open one."
+          actionHref="/admin/tickets/new"
+          actionLabel="New ticket"
         />
       ) : (
         <Card>

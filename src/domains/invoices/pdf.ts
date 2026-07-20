@@ -1,14 +1,31 @@
 import { PDFDocument, StandardFonts, rgb, type PDFFont, type PDFPage } from "pdf-lib";
 import { getSetting } from "@/src/domains/settings/service";
-import { formatMoney } from "@/src/core/utils";
 import type { getInvoice } from "@/src/domains/invoices/service";
 
 type InvoiceForPdf = Awaited<ReturnType<typeof getInvoice>>;
 
-/** pdf-lib WinAnsi fonts reject many Unicode chars. */
+/** Map common Unicode to ASCII so Helvetica/WinAnsi does not show "?". */
 function safeText(input: unknown, fallback = "") {
   const raw = input == null ? fallback : String(input);
-  return raw.replace(/[^\x09\x0A\x0D\x20-\x7E]/g, "?");
+  return raw
+    .replace(/[\u2010\u2011\u2012\u2013\u2014\u2015\u2212]/g, "-")
+    .replace(/[\u2018\u2019\u2032]/g, "'")
+    .replace(/[\u201C\u201D\u2033]/g, '"')
+    .replace(/[\u2022\u00B7\u2024]/g, "-")
+    .replace(/\u2026/g, "...")
+    .replace(/[\u00A0\u202F\u2007\u2009]/g, " ")
+    .replace(/\u00A9/g, "(c)")
+    .replace(/\u00AE/g, "(R)")
+    .replace(/\u2122/g, "(TM)")
+    .replace(/[^\x09\x0A\x0D\x20-\x7E]/g, "?");
+}
+
+/** ASCII money for PDF fonts (avoids locale currency glyphs). */
+function formatMoneyPdf(amountMinor: number, currency = "USD") {
+  const amount = (Math.abs(amountMinor) / 100).toFixed(2);
+  const sign = amountMinor < 0 ? "-" : "";
+  if (currency.toUpperCase() === "USD") return `${sign}$${amount}`;
+  return `${sign}${safeText(currency)} ${amount}`;
 }
 
 function snapshotClient(invoice: InvoiceForPdf) {
@@ -31,9 +48,8 @@ function snapshotClient(invoice: InvoiceForPdf) {
 
 export async function buildInvoicePdf(invoice: InvoiceForPdf): Promise<Buffer> {
   const brand = safeText(await getSetting("brand.name", "QuayPanel"), "QuayPanel");
-  const billToText = safeText(
-    await getSetting("invoice.billTo", ""),
-  ).trim();
+  // Seller / company block on the PDF (settings label: From / company details).
+  const fromText = safeText(await getSetting("invoice.billTo", "")).trim();
   const client = snapshotClient(invoice);
 
   const pdf = await PDFDocument.create();
@@ -83,9 +99,9 @@ export async function buildInvoicePdf(invoice: InvoiceForPdf): Promise<Buffer> {
   });
   y -= 8;
 
-  if (billToText) {
+  if (fromText) {
     line("From:", { bold: true, size: 11 });
-    for (const row of billToText.split(/\r?\n/).filter(Boolean).slice(0, 6)) {
+    for (const row of fromText.split(/\r?\n/).filter(Boolean).slice(0, 8)) {
       line(row, { size: 10 });
     }
     y -= 6;
@@ -108,35 +124,35 @@ export async function buildInvoicePdf(invoice: InvoiceForPdf): Promise<Buffer> {
   line("Line items", { bold: true, size: 11 });
   y -= 2;
   for (const item of invoice.items) {
-    const row = `${safeText(item.description)}  x${item.quantity}  —  ${formatMoney(item.total, invoice.currency)}`;
+    const row = `${safeText(item.description)}  x${item.quantity}  -  ${formatMoneyPdf(item.total, invoice.currency)}`;
     for (const chunk of row.match(/.{1,95}/g) ?? [row]) {
       line(chunk, { size: 10 });
     }
   }
   y -= 8;
 
-  line(`Subtotal: ${formatMoney(invoice.subtotal, invoice.currency)}`, {
+  line(`Subtotal: ${formatMoneyPdf(invoice.subtotal, invoice.currency)}`, {
     size: 11,
   });
   if (invoice.discountMinor > 0) {
     line(
-      `Discount: -${formatMoney(invoice.discountMinor, invoice.currency)}`,
+      `Discount: -${formatMoneyPdf(invoice.discountMinor, invoice.currency)}`,
       { size: 11 },
     );
   }
   if (invoice.taxMinor > 0) {
-    line(`Tax: ${formatMoney(invoice.taxMinor, invoice.currency)}`, {
+    line(`Tax: ${formatMoneyPdf(invoice.taxMinor, invoice.currency)}`, {
       size: 11,
     });
   }
-  line(`Total: ${formatMoney(invoice.total, invoice.currency)}`, {
+  line(`Total: ${formatMoneyPdf(invoice.total, invoice.currency)}`, {
     bold: true,
     size: 13,
   });
 
   if (invoice.isProforma) {
     y -= 12;
-    line("PROFORMA — not a tax invoice", {
+    line("PROFORMA - not a tax invoice", {
       bold: true,
       size: 10,
       color: rgb(0.6, 0.2, 0.1),

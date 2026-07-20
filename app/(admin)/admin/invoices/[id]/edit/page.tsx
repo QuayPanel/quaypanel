@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { use, useEffect, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
@@ -156,13 +157,11 @@ export default function EditInvoicePage({
     >
       <div className="mb-4">
         <Button asChild variant="outline" size="sm">
-          <a
-            href={`/api/v1/invoices/${encodeURIComponent(invoice.number)}/pdf`}
-            target="_blank"
-            rel="noreferrer"
+          <Link
+            href={`/admin/invoices/${encodeURIComponent(invoice.number)}/pdf`}
           >
-            Download PDF
-          </a>
+            View PDF
+          </Link>
         </Button>
       </div>
       <Card>

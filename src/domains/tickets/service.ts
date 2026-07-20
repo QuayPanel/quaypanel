@@ -54,16 +54,17 @@ export async function getTicket(idOrNumber: string) {
 export async function createTicket(
   data: z.infer<typeof ticketCreateSchema>,
   authorUserId: string,
+  options?: { isStaff?: boolean },
 ) {
   const number = await nextTicketNumber();
-  const isStaff = false;
+  const isStaff = Boolean(options?.isStaff);
   const ticket = await prisma.ticket.create({
     data: {
       number,
       clientId: data.clientId,
       subject: data.subject,
       priority: data.priority,
-      status: "OPEN",
+      status: isStaff ? "ANSWERED" : "OPEN",
       messages: {
         create: {
           authorUserId,
@@ -82,11 +83,26 @@ export async function createTicket(
   });
 
   const brand = String(await getSetting("brand.name", "QuayPanel"));
-  await notifyStaffIfEnabled(
-    "ops.notifyStaffOnTicket",
-    `New ticket ${ticket.number} — ${brand}`,
-    `<p>Ticket <strong>${ticket.number}</strong> opened by ${ticket.client.name}: ${ticket.subject}</p>`,
-  ).catch(() => undefined);
+  if (isStaff) {
+    await enqueueEmail({
+      to: ticket.client.email,
+      subject: `New ticket ${ticket.number}`,
+      template: "ticket_reply",
+      payload: {
+        clientName: ticket.client.name,
+        name: ticket.client.name,
+        ticketNumber: ticket.number,
+        ticketSubject: ticket.subject,
+        message: data.body,
+      },
+    }).catch(() => undefined);
+  } else {
+    await notifyStaffIfEnabled(
+      "ops.notifyStaffOnTicket",
+      `New ticket ${ticket.number} — ${brand}`,
+      `<p>Ticket <strong>${ticket.number}</strong> opened by ${ticket.client.name}: ${ticket.subject}</p>`,
+    ).catch(() => undefined);
+  }
 
   const { runAutomation } = await import("@/src/domains/automation/service");
   await runAutomation("TICKET_OPENED", {

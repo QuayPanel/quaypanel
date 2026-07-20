@@ -167,13 +167,11 @@ export default function AdminInvoicesPage() {
                     </TableCell>
                     <TableCell className="space-x-2">
                       <Button asChild size="sm" variant="outline">
-                        <a
-                          href={`/api/v1/invoices/${encodeURIComponent(invoice.number)}/pdf`}
-                          target="_blank"
-                          rel="noreferrer"
+                        <Link
+                          href={`/admin/invoices/${encodeURIComponent(invoice.number)}/pdf`}
                         >
                           PDF
-                        </a>
+                        </Link>
                       </Button>
                       <Button asChild size="sm" variant="outline">
                         <Link href={`/admin/invoices/${encodeURIComponent(invoice.number)}/edit`}>

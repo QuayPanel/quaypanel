@@ -35,13 +35,17 @@ export async function POST(request: Request) {
     await assertTicketsEnabled();
     const ctx = requireAuth(auth);
     const body = ticketCreateSchema.parse(await request.json());
+    let isStaff = false;
     if (useOwnClientScope(ctx, request)) {
       if (!ctx.clientId || body.clientId !== ctx.clientId) {
         throw new ForbiddenError();
       }
     } else {
       requireStaff(auth);
+      isStaff = true;
     }
-    return jsonOk(await createTicket(body, ctx.userId), { status: 201 });
+    return jsonOk(await createTicket(body, ctx.userId, { isStaff }), {
+      status: 201,
+    });
   });
 }

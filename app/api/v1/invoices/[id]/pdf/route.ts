@@ -23,11 +23,16 @@ export async function GET(request: Request, { params }: Params) {
 
     const pdf = await buildInvoicePdf(invoice);
     const filename = `invoice-${invoice.number.replace(/[^\w.-]+/g, "_")}.pdf`;
+    const download =
+      new URL(request.url).searchParams.get("download") === "1";
 
     return new Response(new Uint8Array(pdf), {
       headers: {
         "Content-Type": "application/pdf",
-        "Content-Disposition": `attachment; filename="${filename}"`,
+        "Content-Disposition": download
+          ? `attachment; filename="${filename}"`
+          : `inline; filename="${filename}"`,
+        "Cache-Control": "private, no-store",
       },
     });
   });
