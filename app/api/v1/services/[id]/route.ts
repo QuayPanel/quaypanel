@@ -5,10 +5,14 @@ import {
   useOwnClientScope,
 } from "@/src/auth/session";
 import {
+  clearServiceCancellation,
   deleteService,
   getService,
   requestServiceAction,
+  requestServiceCancellation,
   serviceActionSchema,
+  serviceCancelSchema,
+  serviceCancelUndoSchema,
   serviceUpdateSchema,
   serviceUpgradeSchema,
   updateService,
@@ -56,6 +60,34 @@ export async function POST(request: Request, { params }: Params) {
         requireStaff(auth);
       }
       return jsonOk(await upgradeService(id, body, ctx.userId));
+    }
+
+    if (json?.action === "cancel") {
+      const body = serviceCancelSchema.parse(json);
+      const service = await getService(id);
+      if (useOwnClientScope(ctx, request)) {
+        if (service.clientId !== ctx.clientId) throw new ForbiddenError();
+      } else {
+        requireStaff(auth);
+      }
+      return jsonOk(
+        await requestServiceCancellation(
+          id,
+          { mode: body.mode, reason: body.reason },
+          ctx.userId,
+        ),
+      );
+    }
+
+    if (json?.action === "cancel_undo") {
+      serviceCancelUndoSchema.parse(json);
+      const service = await getService(id);
+      if (useOwnClientScope(ctx, request)) {
+        if (service.clientId !== ctx.clientId) throw new ForbiddenError();
+      } else {
+        requireStaff(auth);
+      }
+      return jsonOk(await clearServiceCancellation(id, ctx.userId));
     }
 
     requireStaff(auth);

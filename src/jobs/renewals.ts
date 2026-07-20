@@ -50,6 +50,13 @@ async function persistCronRun(input: {
 async function runRenewalsSweep(): Promise<CronMetrics> {
   const metrics = emptyMetrics();
   const now = new Date();
+
+  const { processDueCancellations } = await import(
+    "@/src/domains/services/service"
+  );
+  const cancelled = await processDueCancellations(now);
+  metrics.servicesTerminated += cancelled;
+
   const suspendDays = Number(
     await getSetting(
       "cron.suspendOverdueDays",
@@ -64,6 +71,7 @@ async function runRenewalsSweep(): Promise<CronMetrics> {
     where: {
       status: { in: ["ACTIVE", "SUSPENDED"] },
       nextDueAt: { lte: dueHorizon },
+      cancelAt: null,
     },
     include: {
       client: true,

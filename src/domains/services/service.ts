@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { prisma } from "@/src/db/client";
-import { NotFoundError, ConflictError } from "@/src/core/errors";
+import { NotFoundError, ConflictError, ValidationError } from "@/src/core/errors";
 import { isPublicNumberId } from "@/src/core/public-id";
 import { writeAuditLog } from "@/src/domains/audit/service";
 import { addInterval } from "@/src/domains/billing/pricing";
@@ -11,6 +11,16 @@ import { mergeProvisionConfigFromSelections } from "@/src/domains/services/provi
 export const serviceActionSchema = z.object({
   action: z.enum(["suspend", "unsuspend", "terminate", "downgrade"]),
   creditAmountMinor: z.number().int().nonnegative().optional(),
+});
+
+export const serviceCancelSchema = z.object({
+  action: z.literal("cancel"),
+  mode: z.enum(["end_of_term", "immediate"]),
+  reason: z.string().max(2000).optional().nullable(),
+});
+
+export const serviceCancelUndoSchema = z.object({
+  action: z.literal("cancel_undo"),
 });
 
 /** Resolve service by public number (`1`) or internal cuid. */
@@ -210,6 +220,125 @@ export async function requestServiceAction(
     entityId: id,
   });
   return service;
+}
+
+export async function requestServiceCancellation(
+  idOrNumber: string,
+  data: Omit<z.infer<typeof serviceCancelSchema>, "action">,
+  actorId?: string,
+) {
+  const service = await getService(idOrNumber);
+  if (service.status === "TERMINATED") {
+    throw new ConflictError("Service is already terminated");
+  }
+  if (service.cancelAt) {
+    throw new ConflictError(
+      "A cancellation is already scheduled. Remove it first to change it.",
+    );
+  }
+
+  const reason = data.reason?.trim() ? data.reason.trim() : null;
+  const now = new Date();
+
+  if (data.mode === "immediate") {
+    const updated = await prisma.service.update({
+      where: { id: service.id },
+      data: {
+        cancelAt: now,
+        cancelRequestedAt: now,
+        cancelReason: reason,
+      },
+    });
+    await enqueueProvision({
+      action: "terminate",
+      serviceId: service.id,
+      orderId: service.orderItemId ?? undefined,
+      providerId: service.providerId,
+    });
+    await writeAuditLog({
+      actorId,
+      action: "service.cancel_immediate",
+      entityType: "service",
+      entityId: service.id,
+      metadata: { reason },
+    });
+    return updated;
+  }
+
+  if (!service.nextDueAt) {
+    throw new ValidationError(
+      "This service has no end date. Choose cancel immediately instead.",
+    );
+  }
+
+  const updated = await prisma.service.update({
+    where: { id: service.id },
+    data: {
+      cancelAt: service.nextDueAt,
+      cancelRequestedAt: now,
+      cancelReason: reason,
+    },
+  });
+  await writeAuditLog({
+    actorId,
+    action: "service.cancel_end_of_term",
+    entityType: "service",
+    entityId: service.id,
+    metadata: { reason, cancelAt: service.nextDueAt.toISOString() },
+  });
+  return updated;
+}
+
+export async function clearServiceCancellation(
+  idOrNumber: string,
+  actorId?: string,
+) {
+  const service = await getService(idOrNumber);
+  if (!service.cancelAt && !service.cancelRequestedAt) {
+    throw new ValidationError("No cancellation to remove");
+  }
+  if (service.status === "TERMINATED") {
+    throw new ConflictError("Cannot remove cancellation from a terminated service");
+  }
+
+  const updated = await prisma.service.update({
+    where: { id: service.id },
+    data: {
+      cancelAt: null,
+      cancelRequestedAt: null,
+      cancelReason: null,
+    },
+  });
+  await writeAuditLog({
+    actorId,
+    action: "service.cancel_undo",
+    entityType: "service",
+    entityId: service.id,
+  });
+  return updated;
+}
+
+/** Terminate services whose scheduled cancelAt has passed. */
+export async function processDueCancellations(now = new Date()) {
+  const due = await prisma.service.findMany({
+    where: {
+      cancelAt: { lte: now },
+      status: { in: ["PENDING", "ACTIVE", "SUSPENDED"] },
+    },
+    take: 200,
+  });
+
+  let terminated = 0;
+  for (const service of due) {
+    await enqueueProvision({
+      action: "terminate",
+      serviceId: service.id,
+      orderId: service.orderItemId ?? undefined,
+      providerId: service.providerId,
+    });
+    terminated += 1;
+  }
+  return terminated;
 }
 
 export const serviceUpdateSchema = z.object({

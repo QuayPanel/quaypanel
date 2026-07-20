@@ -418,27 +418,31 @@ model InvoiceItem {
 }
 
 model Service {
-  id           String        @id @default(cuid())
-  number       Int           @unique @default(autoincrement())
-  clientId     String
-  client       Client        @relation(fields: [clientId], references: [id], onDelete: Cascade)
-  orderItemId  String?
-  orderItem    OrderItem?    @relation(fields: [orderItemId], references: [id], onDelete: SetNull)
-  planId       String
-  plan         ProductPlan   @relation(fields: [planId], references: [id])
-  status       ServiceStatus @default(PENDING)
-  externalId   String?
-  providerId   String        @default("noop")
-  hostname     String?
-  nextDueAt    DateTime?
-  billingCycle String        @default("month")
-  quantity     Int           @default(1)
-  config       Json          @default("{}")
-  createdAt    DateTime      @default(now())
-  updatedAt    DateTime      @updatedAt
-  invoices     Invoice[]
+  id                String        @id @default(cuid())
+  number            Int           @unique @default(autoincrement())
+  clientId          String
+  client            Client        @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  orderItemId       String?
+  orderItem         OrderItem?    @relation(fields: [orderItemId], references: [id], onDelete: SetNull)
+  planId            String
+  plan              ProductPlan   @relation(fields: [planId], references: [id])
+  status            ServiceStatus @default(PENDING)
+  externalId        String?
+  providerId        String        @default("noop")
+  hostname          String?
+  nextDueAt         DateTime?
+  billingCycle      String        @default("month")
+  quantity          Int           @default(1)
+  config            Json          @default("{}")
+  cancelAt          DateTime?
+  cancelRequestedAt DateTime?
+  cancelReason      String?
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
+  invoices          Invoice[]
 
   @@index([status, nextDueAt])
+  @@index([cancelAt])
   @@map("service")
 }
 

@@ -20,6 +20,9 @@ type Service = {
   nextDueAt: string | null;
   billingCycle: string;
   quantity: number;
+  cancelAt: string | null;
+  cancelRequestedAt: string | null;
+  cancelReason: string | null;
   client: { name: string; email: string };
   plan: { name: string; product: { name: string } };
 };
@@ -93,13 +96,15 @@ export default function EditServicePage({
   });
 
   const action = useMutation({
-    mutationFn: (act: "suspend" | "unsuspend" | "terminate") =>
+    mutationFn: (act: "suspend" | "unsuspend" | "terminate" | "cancel_undo") =>
       apiFetch(`/api/v1/services/${id}`, {
         method: "POST",
         body: JSON.stringify({ action: act }),
       }),
-    onSuccess: () => {
-      toast.success("Action queued");
+    onSuccess: (_data, act) => {
+      toast.success(
+        act === "cancel_undo" ? "Cancellation removed" : "Action queued",
+      );
       queryClient.invalidateQueries({ queryKey: ["admin-services"] });
       queryClient.invalidateQueries({ queryKey: ["service", id] });
     },
@@ -225,6 +230,16 @@ export default function EditServicePage({
             </div>
           </div>
           <div className="flex flex-wrap gap-2 pt-2">
+            {service.cancelAt && service.status !== "TERMINATED" ? (
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                onClick={() => action.mutate("cancel_undo")}
+              >
+                Remove cancellation
+              </Button>
+            ) : null}
             <Button
               type="button"
               size="sm"
@@ -250,6 +265,25 @@ export default function EditServicePage({
               Terminate
             </Button>
           </div>
+          {service.cancelAt ? (
+            <div className="rounded-md border p-3 text-sm">
+              <p>
+                Cancellation scheduled for{" "}
+                <strong>{new Date(service.cancelAt).toLocaleString()}</strong>
+              </p>
+              {service.cancelRequestedAt ? (
+                <p className="text-muted-foreground">
+                  Requested{" "}
+                  {new Date(service.cancelRequestedAt).toLocaleString()}
+                </p>
+              ) : null}
+              {service.cancelReason ? (
+                <p className="mt-1 text-muted-foreground">
+                  Reason: {service.cancelReason}
+                </p>
+              ) : null}
+            </div>
+          ) : null}
         </CardContent>
       </Card>
     </EditPageChrome>

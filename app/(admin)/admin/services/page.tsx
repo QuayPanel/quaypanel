@@ -26,6 +26,8 @@ type Service = {
   hostname: string | null;
   providerId: string;
   nextDueAt: string | null;
+  cancelAt: string | null;
+  cancelReason: string | null;
   client: { name: string; email: string };
   plan: { name: string; product: { name: string } };
 };
@@ -43,14 +45,18 @@ export default function AdminServicesPage() {
       act,
     }: {
       id: string;
-      act: "suspend" | "unsuspend" | "terminate";
+      act: "suspend" | "unsuspend" | "terminate" | "cancel_undo";
     }) =>
       apiFetch(`/api/v1/services/${id}`, {
         method: "POST",
         body: JSON.stringify({ action: act }),
       }),
-    onSuccess: () => {
-      toast.success("Action queued");
+    onSuccess: (_data, vars) => {
+      toast.success(
+        vars.act === "cancel_undo"
+          ? "Cancellation removed"
+          : "Action queued",
+      );
       queryClient.invalidateQueries({ queryKey: ["admin-services"] });
     },
     onError: (err: Error) => toast.error(err.message),
@@ -81,6 +87,7 @@ export default function AdminServicesPage() {
                   <TableHead>Client</TableHead>
                   <TableHead>Product</TableHead>
                   <TableHead>Status</TableHead>
+                  <TableHead>Cancellation</TableHead>
                   <TableHead>Provider</TableHead>
                   <TableHead>Actions</TableHead>
                 </TableRow>
@@ -95,6 +102,16 @@ export default function AdminServicesPage() {
                     <TableCell>
                       <Badge>{service.status}</Badge>
                     </TableCell>
+                    <TableCell className="text-sm text-muted-foreground">
+                      {service.cancelAt && service.status !== "TERMINATED" ? (
+                        <span title={service.cancelReason ?? undefined}>
+                          Scheduled{" "}
+                          {new Date(service.cancelAt).toLocaleDateString()}
+                        </span>
+                      ) : (
+                        "—"
+                      )}
+                    </TableCell>
                     <TableCell>{service.providerId}</TableCell>
                     <TableCell className="space-x-1">
                       <Button asChild size="sm" variant="outline">
@@ -102,6 +119,20 @@ export default function AdminServicesPage() {
                           Edit
                         </Link>
                       </Button>
+                      {service.cancelAt && service.status !== "TERMINATED" ? (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() =>
+                            action.mutate({
+                              id: service.id,
+                              act: "cancel_undo",
+                            })
+                          }
+                        >
+                          Undo cancel
+                        </Button>
+                      ) : null}
                       <Button
                         size="sm"
                         variant="outline"
