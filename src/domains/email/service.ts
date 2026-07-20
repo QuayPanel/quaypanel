@@ -246,6 +246,8 @@ export async function sendMassMail(
   }
 
   const { sendBroadcastEmail } = await import("@/src/email/send");
+  const { markdownToHtml } = await import("@/src/email/render-template");
+  const html = await markdownToHtml(parsed.body);
   let sent = 0;
   let failed = 0;
 
@@ -254,7 +256,7 @@ export async function sendMassMail(
       await sendBroadcastEmail({
         to,
         subject: parsed.subject,
-        html: parsed.body,
+        html,
       });
       sent += 1;
     } catch {

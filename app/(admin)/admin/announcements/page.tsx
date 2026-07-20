@@ -9,6 +9,7 @@ import { PageHeader } from "@/components/admin/page-header";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { MarkdownEditor } from "@/components/ui/markdown-editor";
 import {
   Table,
   TableBody,
@@ -41,13 +42,6 @@ export default function AdminAnnouncementsPage() {
     title: "",
     body: "",
     audience: "client",
-  });
-
-  const [massMail, setMassMail] = useState({
-    filter: "all",
-    productId: "",
-    subject: "",
-    body: "",
   });
 
   const create = useMutation({
@@ -86,157 +80,60 @@ export default function AdminAnnouncementsPage() {
     onError: (err: Error) => toast.error(err.message),
   });
 
-  const sendMass = useMutation({
-    mutationFn: () =>
-      apiFetch<{ recipients: number; sent: number; failed: number }>(
-        "/api/v1/mail/mass",
-        {
-          method: "POST",
-          body: JSON.stringify({
-            filter: massMail.filter,
-            productId:
-              massMail.filter === "productId"
-                ? massMail.productId
-                : undefined,
-            subject: massMail.subject,
-            body: massMail.body,
-          }),
-        },
-      ),
-    onSuccess: (result) => {
-      toast.success(
-        `Sent ${result.sent} of ${result.recipients} (${result.failed} failed)`,
-      );
-    },
-    onError: (err: Error) => toast.error(err.message),
-  });
-
   return (
     <PageMotion>
       <PageHeader
         title="Announcements"
-        description="Site-wide banners for clients and the store, plus mass email."
+        description="Site-wide banners for the client area and store."
       />
 
-      <div className="grid gap-6 lg:grid-cols-2">
-        <Card>
-          <CardHeader>
-            <CardTitle>New announcement</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="space-y-2">
-              <Label required>Title</Label>
-              <Input
-                value={form.title}
-                onChange={(e) =>
-                  setForm((f) => ({ ...f, title: e.target.value }))
-                }
-              />
-            </div>
-            <div className="space-y-2">
-              <Label required>Body</Label>
-              <textarea
-                rows={4}
-                className="min-h-24 w-full rounded-md border border-input bg-card px-3 py-2 text-sm"
-                value={form.body}
-                onChange={(e) =>
-                  setForm((f) => ({ ...f, body: e.target.value }))
-                }
-              />
-            </div>
-            <div className="space-y-2">
-              <Label>Audience</Label>
-              <select
-                className="flex h-10 w-full rounded-md border border-input bg-card px-3 text-sm"
-                value={form.audience}
-                onChange={(e) =>
-                  setForm((f) => ({ ...f, audience: e.target.value }))
-                }
-              >
-                <option value="client">Client area</option>
-                <option value="store">Store</option>
-                <option value="all">All</option>
-              </select>
-            </div>
-            <Button
-              onClick={() => create.mutate()}
-              disabled={
-                !form.title.trim() || !form.body.trim() || create.isPending
+      <Card className="mb-6">
+        <CardHeader>
+          <CardTitle>New announcement</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="space-y-2">
+            <Label required>Title</Label>
+            <Input
+              value={form.title}
+              onChange={(e) =>
+                setForm((f) => ({ ...f, title: e.target.value }))
+              }
+            />
+          </div>
+          <MarkdownEditor
+            label="Body"
+            required
+            value={form.body}
+            onChange={(body) => setForm((f) => ({ ...f, body }))}
+            hint="Markdown is rendered in client and store banners."
+          />
+          <div className="space-y-2">
+            <Label>Audience</Label>
+            <select
+              className="flex h-10 w-full rounded-md border border-input bg-card px-3 text-sm"
+              value={form.audience}
+              onChange={(e) =>
+                setForm((f) => ({ ...f, audience: e.target.value }))
               }
             >
-              Create
-            </Button>
-          </CardContent>
-        </Card>
+              <option value="client">Client area</option>
+              <option value="store">Store</option>
+              <option value="all">All</option>
+            </select>
+          </div>
+          <Button
+            onClick={() => create.mutate()}
+            disabled={
+              !form.title.trim() || !form.body.trim() || create.isPending
+            }
+          >
+            Create
+          </Button>
+        </CardContent>
+      </Card>
 
-        <Card>
-          <CardHeader>
-            <CardTitle>Mass mail</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="space-y-2">
-              <Label>Recipients</Label>
-              <select
-                className="flex h-10 w-full rounded-md border border-input bg-card px-3 text-sm"
-                value={massMail.filter}
-                onChange={(e) =>
-                  setMassMail((f) => ({ ...f, filter: e.target.value }))
-                }
-              >
-                <option value="all">All clients</option>
-                <option value="activeServices">
-                  Clients with active services
-                </option>
-                <option value="overdue">Overdue invoices</option>
-                <option value="productId">Product (by ID)</option>
-              </select>
-            </div>
-            {massMail.filter === "productId" ? (
-              <div className="space-y-2">
-                <Label>Product ID</Label>
-                <Input
-                  value={massMail.productId}
-                  onChange={(e) =>
-                    setMassMail((f) => ({ ...f, productId: e.target.value }))
-                  }
-                />
-              </div>
-            ) : null}
-            <div className="space-y-2">
-              <Label required>Subject</Label>
-              <Input
-                value={massMail.subject}
-                onChange={(e) =>
-                  setMassMail((f) => ({ ...f, subject: e.target.value }))
-                }
-              />
-            </div>
-            <div className="space-y-2">
-              <Label required>HTML body</Label>
-              <textarea
-                rows={5}
-                className="min-h-32 w-full rounded-md border border-input bg-card px-3 py-2 text-sm"
-                value={massMail.body}
-                onChange={(e) =>
-                  setMassMail((f) => ({ ...f, body: e.target.value }))
-                }
-              />
-            </div>
-            <Button
-              onClick={() => sendMass.mutate()}
-              disabled={
-                !massMail.subject.trim() ||
-                !massMail.body.trim() ||
-                sendMass.isPending
-              }
-            >
-              Send mass mail
-            </Button>
-          </CardContent>
-        </Card>
-      </div>
-
-      <Card className="mt-6">
+      <Card>
         <CardHeader>
           <CardTitle>All announcements</CardTitle>
         </CardHeader>

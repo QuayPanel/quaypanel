@@ -29,6 +29,7 @@ import {
   Megaphone,
   BarChart3,
   Workflow,
+  Send,
 } from "lucide-react";
 import { getSessionUser } from "@/src/auth/session";
 import { BrandMark } from "@/components/brand-mark";
@@ -107,6 +108,7 @@ const navGroups: NavGroup[] = [
       { href: "/admin/fraud", label: "Fraud & review", icon: ShieldAlert },
       { href: "/admin/gdpr", label: "GDPR", icon: Shield },
       { href: "/admin/announcements", label: "Announcements", icon: Megaphone },
+      { href: "/admin/mass-mail", label: "Mass mail", icon: Send },
       { href: "/admin/automation", label: "Automation", icon: Workflow },
     ],
   },

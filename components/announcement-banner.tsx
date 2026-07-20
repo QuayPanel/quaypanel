@@ -1,6 +1,7 @@
 "use client";
 
 import { useApiQuery } from "@/components/api";
+import { StoreMarkdown } from "@/components/store-markdown";
 
 type Announcement = {
   id: string;
@@ -44,9 +45,9 @@ export function AnnouncementBanner({
           className="rounded-md border bg-card px-4 py-2 text-sm"
         >
           <p className="font-medium">{item.title}</p>
-          <p className="mt-1 whitespace-pre-wrap text-muted-foreground">
-            {item.body}
-          </p>
+          <div className="mt-1 text-muted-foreground [&_p]:my-1">
+            <StoreMarkdown compact>{item.body}</StoreMarkdown>
+          </div>
         </div>
       ))}
     </div>
