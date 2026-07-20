@@ -117,6 +117,13 @@ enum GdprRequestStatus {
   REJECTED
 }
 
+enum EmailCampaignStatus {
+  DRAFT
+  SENDING
+  SENT
+  FAILED
+}
+
 enum AutomationTrigger {
   ORDER_PAID
   INVOICE_OVERDUE
@@ -955,6 +962,25 @@ model AutomationRule {
 
   @@index([enabled, trigger])
   @@map("automation_rule")
+}
+
+model EmailCampaign {
+  id              String              @id @default(cuid())
+  name            String
+  subject         String
+  body            String
+  filter          String              @default("all")
+  productId       String?
+  status          EmailCampaignStatus @default(DRAFT)
+  recipientCount  Int                 @default(0)
+  sentCount       Int                 @default(0)
+  failedCount     Int                 @default(0)
+  sentAt          DateTime?
+  createdAt       DateTime            @default(now())
+  updatedAt       DateTime            @updatedAt
+
+  @@index([status, createdAt])
+  @@map("email_campaign")
 }
 
 model LegalPage {

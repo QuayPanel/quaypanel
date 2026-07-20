@@ -108,7 +108,7 @@ const navGroups: NavGroup[] = [
       { href: "/admin/fraud", label: "Fraud & review", icon: ShieldAlert },
       { href: "/admin/gdpr", label: "GDPR", icon: Shield },
       { href: "/admin/announcements", label: "Announcements", icon: Megaphone },
-      { href: "/admin/mass-mail", label: "Mass mail", icon: Send },
+      { href: "/admin/mail-campaigns", label: "Mail campaigns", icon: Send },
       { href: "/admin/automation", label: "Automation", icon: Workflow },
     ],
   },
