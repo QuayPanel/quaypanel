@@ -3,6 +3,8 @@ import { prisma } from "@/src/db/client";
 import { ConflictError, NotFoundError, ValidationError } from "@/src/core/errors";
 import { writeAuditLog } from "@/src/domains/audit/service";
 import { getSetting } from "@/src/domains/settings/service";
+import { enqueueEmail } from "@/src/core/queue";
+import { formatMoney } from "@/src/core/utils";
 import { nanoid } from "nanoid";
 
 export type AffiliateMilestone = { referrals: number; percent: number };
@@ -171,6 +173,42 @@ export async function resolveAffiliateCodeForClient(clientId: string) {
   return referral.affiliate.code;
 }
 
+function affiliateEmailDomain(email: string) {
+  const at = email.lastIndexOf("@");
+  if (at < 0) return "";
+  return email.slice(at + 1).toLowerCase();
+}
+
+async function flagAffiliateDomainMismatch(
+  affiliateId: string,
+  referredClientId: string,
+) {
+  const [affiliate, referred] = await Promise.all([
+    prisma.affiliate.findUnique({
+      where: { id: affiliateId },
+      include: { client: true },
+    }),
+    prisma.client.findUnique({ where: { id: referredClientId } }),
+  ]);
+  if (!affiliate || !referred) return;
+
+  const affiliateDomain = affiliateEmailDomain(affiliate.client.email);
+  const referredDomain = affiliateEmailDomain(referred.email);
+  if (!affiliateDomain || affiliateDomain === referredDomain) return;
+
+  const flags = Array.isArray(referred.riskFlags)
+    ? [...(referred.riskFlags as string[])]
+    : [];
+  const flag = `affiliate_domain_mismatch:${affiliateDomain}`;
+  if (flags.includes(flag)) return;
+
+  flags.push(flag);
+  await prisma.client.update({
+    where: { id: referredClientId },
+    data: { riskFlags: flags as object },
+  });
+}
+
 export async function recordAffiliateCommission(input: {
   affiliateCode?: string | null;
   orderId?: string | null;
@@ -225,7 +263,162 @@ export async function recordAffiliateCommission(input: {
     data: { balanceMinor: { increment: commissionMinor } },
   });
 
+  await flagAffiliateDomainMismatch(
+    affiliate.id,
+    input.referredClientId,
+  ).catch(() => undefined);
+
   return referral;
+}
+
+export const affiliatePayoutRequestSchema = z.object({
+  amountMinor: z.number().int().positive(),
+});
+
+export async function requestAffiliatePayout(
+  clientId: string,
+  amountMinor: number,
+) {
+  const parsed = affiliatePayoutRequestSchema.parse({ amountMinor });
+  const affiliate = await getAffiliateByClientId(clientId);
+  if (!affiliate) throw new NotFoundError("Affiliate account not found");
+  if (affiliate.status !== "ACTIVE") {
+    throw new ValidationError("Affiliate account is not active");
+  }
+  if (parsed.amountMinor > affiliate.balanceMinor) {
+    throw new ValidationError("Insufficient affiliate balance");
+  }
+
+  const payout = await prisma.$transaction(async (tx) => {
+    const updatedAffiliate = await tx.affiliate.update({
+      where: { id: affiliate.id },
+      data: { balanceMinor: { decrement: parsed.amountMinor } },
+    });
+    if (updatedAffiliate.balanceMinor < 0) {
+      throw new ValidationError("Insufficient affiliate balance");
+    }
+    return tx.affiliatePayout.create({
+      data: {
+        affiliateId: affiliate.id,
+        clientId,
+        amountMinor: parsed.amountMinor,
+        status: "PENDING",
+      },
+      include: { client: true, affiliate: true },
+    });
+  });
+
+  return payout;
+}
+
+export async function listAffiliatePayouts(status?: string) {
+  const where =
+    status && status !== "all"
+      ? { status: status as "PENDING" | "APPROVED" | "PAID" | "REJECTED" }
+      : undefined;
+  return prisma.affiliatePayout.findMany({
+    where,
+    include: {
+      client: { select: { name: true, email: true } },
+      affiliate: { select: { code: true } },
+    },
+    orderBy: { createdAt: "desc" },
+  });
+}
+
+export async function updateAffiliatePayoutStatus(
+  id: string,
+  status: "APPROVED" | "PAID" | "REJECTED",
+  actorId?: string,
+  note?: string,
+) {
+  const payout = await prisma.affiliatePayout.findUnique({ where: { id } });
+  if (!payout) throw new NotFoundError("Payout not found");
+
+  if (status === "REJECTED") {
+    if (payout.status !== "PENDING") {
+      throw new ValidationError("Only pending payouts can be rejected");
+    }
+    const updated = await prisma.$transaction(async (tx) => {
+      await tx.affiliate.update({
+        where: { id: payout.affiliateId },
+        data: { balanceMinor: { increment: payout.amountMinor } },
+      });
+      return tx.affiliatePayout.update({
+        where: { id },
+        data: { status: "REJECTED", note: note ?? null },
+      });
+    });
+    await writeAuditLog({
+      actorId,
+      action: "affiliate.payout.reject",
+      entityType: "affiliate_payout",
+      entityId: id,
+    });
+    return updated;
+  }
+
+  if (status === "APPROVED") {
+    if (payout.status !== "PENDING") {
+      throw new ValidationError("Only pending payouts can be approved");
+    }
+    const updated = await prisma.affiliatePayout.update({
+      where: { id },
+      data: { status: "APPROVED", note: note ?? payout.note },
+    });
+    await writeAuditLog({
+      actorId,
+      action: "affiliate.payout.approve",
+      entityType: "affiliate_payout",
+      entityId: id,
+    });
+    return updated;
+  }
+
+  if (payout.status !== "APPROVED" && payout.status !== "PENDING") {
+    throw new ValidationError("Invalid payout state for payment");
+  }
+  const updated = await prisma.affiliatePayout.update({
+    where: { id },
+    data: { status: "PAID", note: note ?? payout.note },
+    include: { client: true },
+  });
+  await writeAuditLog({
+    actorId,
+    action: "affiliate.payout.paid",
+    entityType: "affiliate_payout",
+    entityId: id,
+  });
+  await notifyAffiliatePayout({
+    clientEmail: updated.client.email,
+    clientName: updated.client.name,
+    amountMinor: updated.amountMinor,
+    status: "PAID",
+    note: updated.note,
+  }).catch(() => undefined);
+  return updated;
+}
+
+export async function notifyAffiliatePayout(input: {
+  clientEmail: string;
+  clientName: string;
+  amountMinor: number;
+  currency?: string;
+  status: string;
+  note?: string | null;
+}) {
+  const currency = input.currency ?? String(await getSetting("currency", "USD"));
+  await enqueueEmail({
+    to: input.clientEmail,
+    subject: "Affiliate payout processed",
+    template: "affiliate_payout",
+    payload: {
+      clientName: input.clientName,
+      amount: formatMoney(input.amountMinor, currency),
+      status: input.status,
+      note: input.note ? String(input.note) : "",
+    },
+  }).catch(() => undefined);
 }
 
 export async function updateReferralStatus(

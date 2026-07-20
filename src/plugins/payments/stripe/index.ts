@@ -23,8 +23,28 @@ export function createStripeGateway(options: {
     async createCheckout(input: CheckoutInput): Promise<CheckoutResult> {
       const session = await stripe.checkout.sessions.create({
         mode: "payment",
-        customer_email: input.customerEmail,
-        customer_creation: "always",
+        ...(input.customerId
+          ? {
+              customer: input.customerId,
+              customer_update: {
+                address: "auto",
+                name: "auto",
+              },
+            }
+          : {
+              customer_email: input.customerEmail,
+              customer_creation: "always",
+            }),
+        payment_method_types: ["card", "link"],
+        billing_address_collection: "auto",
+        saved_payment_method_options: {
+          payment_method_save: "enabled",
+        },
+        wallet_options: {
+          link: {
+            display: "auto",
+          },
+        },
         payment_intent_data: {
           setup_future_usage: "off_session",
         },
@@ -73,6 +93,26 @@ export function createStripeGateway(options: {
 
       if (event.type === "checkout.session.completed") {
         const session = event.data.object as Stripe.Checkout.Session;
+
+        let paymentMethodId: string | undefined;
+        if (session.payment_intent) {
+          if (typeof session.payment_intent === "string") {
+            const intent = await stripe.paymentIntents.retrieve(
+              session.payment_intent,
+              { expand: ["payment_method"] },
+            );
+            paymentMethodId =
+              typeof intent.payment_method === "string"
+                ? intent.payment_method
+                : intent.payment_method?.id;
+          } else {
+            paymentMethodId =
+              typeof session.payment_intent.payment_method === "string"
+                ? session.payment_intent.payment_method
+                : session.payment_intent.payment_method?.id;
+          }
+        }
+
         return {
           handled: true,
           externalEventId: event.id,
@@ -84,15 +124,7 @@ export function createStripeGateway(options: {
             typeof session.customer === "string"
               ? session.customer
               : session.customer?.id,
-          paymentMethodId:
-            typeof session.payment_intent === "object" &&
-            session.payment_intent &&
-            "payment_method" in session.payment_intent
-              ? String(
-                  (session.payment_intent as { payment_method?: string })
-                    .payment_method ?? "",
-                ) || undefined
-              : undefined,
+          paymentMethodId,
         };
       }
 

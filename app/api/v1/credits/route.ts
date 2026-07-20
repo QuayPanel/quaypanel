@@ -9,9 +9,16 @@ import {
   depositCredits,
   getCreditBalance,
   listCreditLedger,
+  createCreditDepositCheckout,
 } from "@/src/domains/credits/service";
 import { ForbiddenError } from "@/src/core/errors";
 import { minorToDollars } from "@/src/core/utils";
+import { z } from "zod";
+
+const clientDepositSchema = z.object({
+  amount: z.number().positive(),
+  gatewayId: z.enum(["stripe", "paypal"]).optional(),
+});
 
 function creditBalancePayload(balanceMinor: number, ledger: unknown) {
   return {
@@ -46,14 +53,26 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   return withApi(request, async ({ auth }) => {
     const ctx = requireAuth(auth);
-    const body = creditDepositSchema.parse(await request.json());
     if (useOwnClientScope(ctx, request)) {
-      if (!ctx.clientId || body.clientId !== ctx.clientId) {
-        throw new ForbiddenError();
-      }
-    } else {
-      requireStaff(auth);
+      if (!ctx.clientId) throw new ForbiddenError();
+      const body = clientDepositSchema.parse(await request.json());
+      const result = await createCreditDepositCheckout(
+        ctx.clientId,
+        body.amount,
+        body.gatewayId ?? "stripe",
+        ctx.userId,
+      );
+      return jsonOk(
+        {
+          invoice: result.invoice,
+          checkoutUrl: result.payment.checkoutUrl,
+        },
+        { status: 201 },
+      );
     }
+
+    requireStaff(auth);
+    const body = creditDepositSchema.parse(await request.json());
     return jsonOk(await depositCredits(body, ctx.userId), { status: 201 });
   });
 }

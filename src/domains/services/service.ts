@@ -4,7 +4,7 @@ import { NotFoundError, ConflictError, ValidationError } from "@/src/core/errors
 import { isPublicNumberId } from "@/src/core/public-id";
 import { writeAuditLog } from "@/src/domains/audit/service";
 import { addInterval } from "@/src/domains/billing/pricing";
-import { enqueueProvision } from "@/src/core/queue";
+import { enqueueProvision, enqueueEmail } from "@/src/core/queue";
 import { creditOnDowngrade } from "@/src/domains/credits/service";
 import { mergeProvisionConfigFromSelections } from "@/src/domains/services/provision-config";
 
@@ -151,14 +151,32 @@ export async function markServiceProvisioned(input: {
   externalId?: string;
   hostname?: string;
 }) {
-  return prisma.service.update({
+  const service = await prisma.service.update({
     where: { id: input.serviceId },
     data: {
       status: "ACTIVE",
       externalId: input.externalId,
       hostname: input.hostname,
     },
+    include: {
+      client: true,
+      plan: { include: { product: true } },
+    },
   });
+
+  const serviceName = `${service.plan.product.name} / ${service.plan.name}`;
+  await enqueueEmail({
+    to: service.client.email,
+    subject: `Your service is ready — ${serviceName}`,
+    template: "service_ready",
+    payload: {
+      clientName: service.client.name,
+      serviceName,
+      hostname: service.hostname ?? "",
+    },
+  }).catch(() => undefined);
+
+  return service;
 }
 
 export async function updateServiceStatus(
@@ -239,6 +257,21 @@ export async function requestServiceCancellation(
 
   const reason = data.reason?.trim() ? data.reason.trim() : null;
   const now = new Date();
+  const serviceName = `${service.plan.product.name} / ${service.plan.name}`;
+
+  const sendCancellationEmail = async (cancelAt: Date) => {
+    await enqueueEmail({
+      to: service.client.email,
+      subject: `Cancellation confirmed — ${serviceName}`,
+      template: "cancellation_confirm",
+      payload: {
+        clientName: service.client.name,
+        serviceName,
+        cancelAt: cancelAt.toLocaleString(),
+        reason: reason ? `Reason: ${reason}` : "",
+      },
+    }).catch(() => undefined);
+  };
 
   if (data.mode === "immediate") {
     const updated = await prisma.service.update({
@@ -262,6 +295,7 @@ export async function requestServiceCancellation(
       entityId: service.id,
       metadata: { reason },
     });
+    await sendCancellationEmail(now);
     return updated;
   }
 
@@ -286,6 +320,7 @@ export async function requestServiceCancellation(
     entityId: service.id,
     metadata: { reason, cancelAt: service.nextDueAt.toISOString() },
   });
+  await sendCancellationEmail(service.nextDueAt);
   return updated;
 }
 
@@ -528,4 +563,25 @@ export async function upgradeService(
     chargeMinor,
     creditAmountMinor,
   };
+}
+
+export async function getServiceConsoleLink(idOrNumber: string) {
+  const service = await getService(idOrNumber);
+  const { getProvisioningProvider } = await import("@/src/plugins/registry");
+  let provider;
+  try {
+    provider = getProvisioningProvider(service.providerId || "noop");
+  } catch {
+    return null;
+  }
+  if (!provider.getConsoleUrl) return null;
+  return provider.getConsoleUrl({
+    serviceId: service.id,
+    externalId: service.externalId ?? undefined,
+    hostname: service.hostname ?? undefined,
+    provisionConfig: (service.config ?? {}) as Record<string, unknown>,
+    client: service.client
+      ? { email: service.client.email, name: service.client.name }
+      : undefined,
+  });
 }

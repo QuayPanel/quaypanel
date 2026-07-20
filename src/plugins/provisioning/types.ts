@@ -16,6 +16,11 @@ export type ProvisionResult = {
   hostname?: string;
 };
 
+export type ConsoleLink = {
+  url: string;
+  label: string;
+};
+
 export interface ProvisioningProvider {
   id: string;
   name: string;
@@ -23,4 +28,6 @@ export interface ProvisioningProvider {
   suspend(service: ServiceContext): Promise<void>;
   unsuspend(service: ServiceContext): Promise<void>;
   terminate(service: ServiceContext): Promise<void>;
+  /** Optional panel / console deep-link for client SSO-style access. */
+  getConsoleUrl?(service: ServiceContext): Promise<ConsoleLink | null>;
 }

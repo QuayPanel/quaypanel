@@ -6,6 +6,7 @@ import {
   getEmailTemplateDefault,
 } from "@/src/email/defaults";
 import { ensureEmailTemplatesSeeded } from "@/src/email/render-template";
+import { writeAuditLog } from "@/src/domains/audit/service";
 
 export const emailTemplateUpdateSchema = z.object({
   name: z.string().min(1).optional(),
@@ -108,7 +109,8 @@ export async function sendTestEmailTemplate(
       | "invoice"
       | "receipt"
       | "ticket_reply"
-      | "cron_failure",
+      | "cron_failure"
+      | "announcement",
     payload: sample,
   });
 
@@ -176,6 +178,104 @@ export async function getEmailLog(id: string) {
   const row = await prisma.emailLog.findUnique({ where: { id } });
   if (!row) throw new NotFoundError("Email log not found");
   return row;
+}
+
+export const massMailSchema = z.object({
+  filter: z.enum(["all", "productId", "overdue", "activeServices"]),
+  productId: z.string().optional(),
+  subject: z.string().min(1),
+  body: z.string().min(1),
+});
+
+async function resolveMassMailRecipients(
+  filter: z.infer<typeof massMailSchema>["filter"],
+  productId?: string,
+) {
+  if (filter === "all") {
+    const clients = await prisma.client.findMany({
+      select: { email: true },
+    });
+    return [...new Set(clients.map((c) => c.email))];
+  }
+
+  if (filter === "productId") {
+    if (!productId) {
+      throw new ValidationError("productId is required for productId filter");
+    }
+    const services = await prisma.service.findMany({
+      where: {
+        status: { in: ["ACTIVE", "PENDING", "SUSPENDED"] },
+        plan: { productId },
+      },
+      include: { client: true },
+    });
+    return [...new Set(services.map((s) => s.client.email))];
+  }
+
+  if (filter === "overdue") {
+    const now = new Date();
+    const invoices = await prisma.invoice.findMany({
+      where: {
+        status: "UNPAID",
+        dueAt: { lt: now },
+      },
+      include: { client: true },
+    });
+    return [...new Set(invoices.map((i) => i.client.email))];
+  }
+
+  const services = await prisma.service.findMany({
+    where: { status: "ACTIVE" },
+    include: { client: true },
+  });
+  return [...new Set(services.map((s) => s.client.email))];
+}
+
+export async function sendMassMail(
+  data: z.infer<typeof massMailSchema>,
+  actorId?: string,
+) {
+  const parsed = massMailSchema.parse(data);
+  const recipients = await resolveMassMailRecipients(
+    parsed.filter,
+    parsed.productId,
+  );
+
+  if (recipients.length === 0) {
+    throw new ValidationError("No recipients matched the selected filter");
+  }
+
+  const { sendBroadcastEmail } = await import("@/src/email/send");
+  let sent = 0;
+  let failed = 0;
+
+  for (const to of recipients) {
+    try {
+      await sendBroadcastEmail({
+        to,
+        subject: parsed.subject,
+        html: parsed.body,
+      });
+      sent += 1;
+    } catch {
+      failed += 1;
+    }
+  }
+
+  await writeAuditLog({
+    actorId,
+    action: "mail.mass",
+    entityType: "email",
+    metadata: {
+      filter: parsed.filter,
+      productId: parsed.productId,
+      recipients: recipients.length,
+      sent,
+      failed,
+    },
+  });
+
+  return { recipients: recipients.length, sent, failed };
 }
 
 export async function seedEmailTemplates() {

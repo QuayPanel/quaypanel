@@ -4,6 +4,8 @@ import { NotFoundError, ValidationError } from "@/src/core/errors";
 import { dollarsToMinor } from "@/src/core/utils";
 import { getSetting } from "@/src/domains/settings/service";
 import { writeAuditLog } from "@/src/domains/audit/service";
+import { createCustomInvoice } from "@/src/domains/invoices/service";
+import { createCheckoutForInvoice } from "@/src/domains/payments/service";
 
 /** Deposit amount in dollars (e.g. 5.00). `amountMinor` kept for backward compatibility. */
 export const creditDepositSchema = z
@@ -93,6 +95,103 @@ export async function depositCredits(
     entityType: "client",
     entityId: data.clientId,
     metadata: { amountMinor, amountDollars: amountMinor / 100 },
+  });
+
+  return updated;
+}
+
+/** Client self-service: create unpaid credit-deposit invoice + checkout. */
+export async function createCreditDepositCheckout(
+  clientId: string,
+  amountDollars: number,
+  gatewayId: "stripe" | "paypal" = "stripe",
+  actorId?: string,
+) {
+  const enabled = Boolean(await getSetting("credits.enabled", false));
+  if (!enabled) throw new ValidationError("Credits system is disabled");
+
+  const amountMinor = dollarsToMinor(amountDollars);
+  const min = await creditLimitMinor("credits.minDeposit", 5);
+  const max = await creditLimitMinor("credits.maxDeposit", 1000);
+  const maxBalance = await creditLimitMinor("credits.maxBalance", 5000);
+
+  if (amountMinor < min || amountMinor > max) {
+    throw new ValidationError("Deposit amount outside allowed range");
+  }
+
+  const client = await prisma.client.findUnique({ where: { id: clientId } });
+  if (!client) throw new NotFoundError("Client not found");
+  if (client.creditBalanceMinor + amountMinor > maxBalance) {
+    throw new ValidationError("Deposit would exceed maximum credit balance");
+  }
+
+  const currency = String(await getSetting("currency", "USD"));
+  const invoice = await createCustomInvoice({
+    clientId,
+    currency,
+    note: "Credit deposit",
+    dueDays: 7,
+    items: [
+      {
+        description: "Credit deposit",
+        quantity: 1,
+        unitPrice: amountMinor,
+        total: amountMinor,
+      },
+    ],
+    actorId,
+  });
+
+  const payment = await createCheckoutForInvoice(
+    invoice.id,
+    gatewayId,
+    actorId,
+  );
+
+  return { invoice, payment };
+}
+
+/** Settle credits after a credit-deposit invoice is paid (staff deposits skip invoice). */
+export async function settleCreditDepositFromInvoice(
+  clientId: string,
+  amountMinor: number,
+  invoiceId: string,
+  actorId?: string,
+) {
+  const enabled = Boolean(await getSetting("credits.enabled", false));
+  if (!enabled || amountMinor <= 0) return null;
+
+  const maxBalance = await creditLimitMinor("credits.maxBalance", 5000);
+  const client = await prisma.client.findUnique({ where: { id: clientId } });
+  if (!client) throw new NotFoundError("Client not found");
+  if (client.creditBalanceMinor + amountMinor > maxBalance) {
+    throw new ValidationError("Deposit would exceed maximum credit balance");
+  }
+
+  const updated = await prisma.$transaction(async (tx) => {
+    const c = await tx.client.update({
+      where: { id: clientId },
+      data: { creditBalanceMinor: { increment: amountMinor } },
+    });
+    await tx.creditTransaction.create({
+      data: {
+        clientId,
+        amountMinor,
+        type: "DEPOSIT",
+        note: "Credit deposit (invoice paid)",
+        refType: "invoice",
+        refId: invoiceId,
+      },
+    });
+    return c;
+  });
+
+  await writeAuditLog({
+    actorId,
+    action: "credits.deposit",
+    entityType: "client",
+    entityId: clientId,
+    metadata: { amountMinor, invoiceId },
   });
 
   return updated;

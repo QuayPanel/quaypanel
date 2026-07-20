@@ -3,6 +3,8 @@ import { prisma } from "@/src/db/client";
 import { NotFoundError } from "@/src/core/errors";
 import { writeAuditLog } from "@/src/domains/audit/service";
 import { enqueueEmail } from "@/src/core/queue";
+import { notifyStaffIfEnabled } from "@/src/domains/ops/notify";
+import { getSetting } from "@/src/domains/settings/service";
 
 export const ticketCreateSchema = z.object({
   clientId: z.string().min(1),
@@ -78,6 +80,24 @@ export async function createTicket(
     entityType: "ticket",
     entityId: ticket.id,
   });
+
+  const brand = String(await getSetting("brand.name", "QuayPanel"));
+  await notifyStaffIfEnabled(
+    "ops.notifyStaffOnTicket",
+    `New ticket ${ticket.number} — ${brand}`,
+    `<p>Ticket <strong>${ticket.number}</strong> opened by ${ticket.client.name}: ${ticket.subject}</p>`,
+  ).catch(() => undefined);
+
+  const { runAutomation } = await import("@/src/domains/automation/service");
+  await runAutomation("TICKET_OPENED", {
+    event: "ticket.opened",
+    ticketId: ticket.id,
+    ticketNumber: ticket.number,
+    clientId: ticket.clientId,
+    clientEmail: ticket.client.email,
+    subject: ticket.subject,
+  }).catch(() => undefined);
+
   return ticket;
 }
 

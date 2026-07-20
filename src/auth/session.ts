@@ -8,6 +8,15 @@ import {
 import { prisma } from "@/src/db/client";
 import { createHash } from "crypto";
 import { ensureUserClient } from "@/src/domains/clients/ensure-user-client";
+import {
+  parseUserPermissions,
+  requirePermission as requirePermissionKey,
+  type PermissionKey,
+} from "@/src/auth/permissions";
+import {
+  readImpersonateCookie,
+  readImpersonateFromHeaders,
+} from "@/src/auth/impersonate";
 
 export type AuthContext = {
   userId: string;
@@ -15,6 +24,8 @@ export type AuthContext = {
   name: string;
   role: Role;
   clientId: string | null;
+  permissions?: string[];
+  impersonating?: boolean;
   via: "session" | "api_key";
 };
 
@@ -29,7 +40,11 @@ export async function getSessionUser() {
   });
   if (!user) return null;
 
-  const clientId = await ensureUserClient(user);
+  let clientId = await ensureUserClient(user);
+  const impersonate = await readImpersonateCookie();
+  if (impersonate && impersonate.adminUserId === user.id) {
+    clientId = impersonate.clientId;
+  }
 
   return {
     userId: user.id,
@@ -37,6 +52,10 @@ export async function getSessionUser() {
     name: user.name,
     role: user.role,
     clientId,
+    permissions: parseUserPermissions(user.permissions),
+    impersonating: Boolean(
+      impersonate && impersonate.adminUserId === user.id,
+    ),
     via: "session" as const,
   };
 }
@@ -72,6 +91,7 @@ export async function resolveAuthFromRequest(
       name: apiKey.user.name,
       role: apiKey.user.role,
       clientId,
+      permissions: parseUserPermissions(apiKey.user.permissions),
       via: "api_key",
     };
   }
@@ -86,7 +106,13 @@ export async function resolveAuthFromRequest(
   });
   if (!user) return null;
 
-  const clientId = await ensureUserClient(user);
+  let clientId = await ensureUserClient(user);
+  const impersonate = await readImpersonateFromHeaders(
+    request.headers.get("cookie"),
+  );
+  if (impersonate && impersonate.adminUserId === user.id) {
+    clientId = impersonate.clientId;
+  }
 
   return {
     userId: user.id,
@@ -94,6 +120,10 @@ export async function resolveAuthFromRequest(
     name: user.name,
     role: user.role,
     clientId,
+    permissions: parseUserPermissions(user.permissions),
+    impersonating: Boolean(
+      impersonate && impersonate.adminUserId === user.id,
+    ),
     via: "session",
   };
 }
@@ -116,6 +146,13 @@ export function requireRole(
 
 export function requireStaff(ctx: AuthContext | null) {
   return requireRole(ctx, ["ADMIN", "STAFF"]);
+}
+
+export async function requirePermission(
+  ctx: AuthContext | null,
+  key: PermissionKey,
+) {
+  return requirePermissionKey(ctx, key);
 }
 
 export function requireAdmin(ctx: AuthContext | null) {

@@ -1,9 +1,10 @@
 import { prisma } from "@/src/db/client";
 import { NotFoundError, ConflictError } from "@/src/core/errors";
 import { writeAuditLog } from "@/src/domains/audit/service";
-import { enqueueInvoicePaid } from "@/src/core/queue";
+import { enqueueInvoicePaid, enqueueEmail } from "@/src/core/queue";
 import { getSetting, updateSettings } from "@/src/domains/settings/service";
 import { z } from "zod";
+import { formatMoney } from "@/src/core/utils";
 
 export async function formatNextInvoiceNumber() {
   const format = String(
@@ -34,8 +35,26 @@ async function nextInvoiceNumber() {
 }
 
 export async function listInvoices(clientId?: string) {
+  let where: { OR?: Array<{ clientId: string } | { serviceId: { in: string[] } }> } | undefined;
+
+  if (clientId) {
+    const contributorRows = await prisma.serviceContributor.findMany({
+      where: { clientId },
+      select: { serviceId: true },
+    });
+    const serviceIds = contributorRows.map((row) => row.serviceId);
+    where = {
+      OR: [
+        { clientId },
+        ...(serviceIds.length > 0
+          ? [{ serviceId: { in: serviceIds } }]
+          : []),
+      ],
+    };
+  }
+
   return prisma.invoice.findMany({
-    where: clientId ? { clientId } : undefined,
+    where,
     include: {
       client: true,
       items: true,
@@ -46,6 +65,30 @@ export async function listInvoices(clientId?: string) {
     },
     orderBy: { createdAt: "desc" },
   });
+}
+
+export async function canAccessInvoiceAsClient(
+  clientId: string,
+  invoice: { clientId: string; serviceId: string | null },
+) {
+  if (invoice.clientId === clientId) return true;
+  if (!invoice.serviceId) return false;
+  const contributor = await prisma.serviceContributor.findFirst({
+    where: { serviceId: invoice.serviceId, clientId },
+  });
+  return Boolean(contributor);
+}
+
+export async function canPayInvoiceAsClient(
+  clientId: string,
+  invoice: { clientId: string; serviceId: string | null },
+) {
+  if (invoice.clientId === clientId) return true;
+  if (!invoice.serviceId) return false;
+  const contributor = await prisma.serviceContributor.findFirst({
+    where: { serviceId: invoice.serviceId, clientId, canPay: true },
+  });
+  return Boolean(contributor);
 }
 
 export async function getInvoice(idOrNumber: string) {
@@ -276,6 +319,102 @@ export async function updateInvoice(
     entityId: invoice.id,
   });
   return getInvoice(updated.id);
+}
+
+export const customInvoiceItemSchema = z.object({
+  description: z.string().min(1),
+  quantity: z.number().int().positive().default(1),
+  unitPrice: z.number().int(),
+  total: z.number().int().optional(),
+});
+
+export const createCustomInvoiceSchema = z.object({
+  clientId: z.string().min(1),
+  currency: z.string().min(1).optional(),
+  note: z.string().optional(),
+  dueDays: z.number().int().positive().optional(),
+  items: z.array(customInvoiceItemSchema).min(1),
+});
+
+export async function createCustomInvoice(input: {
+  clientId: string;
+  items: Array<{
+    description: string;
+    quantity: number;
+    unitPrice: number;
+    total?: number;
+  }>;
+  currency?: string;
+  note?: string;
+  dueDays?: number;
+  actorId?: string;
+}) {
+  const client = await prisma.client.findUnique({
+    where: { id: input.clientId },
+  });
+  if (!client) throw new NotFoundError("Client not found");
+
+  const currency =
+    input.currency ?? String(await getSetting("currency", "USD"));
+  const lineItems = input.items.map((item) => ({
+    description: item.description,
+    quantity: item.quantity,
+    unitPrice: item.unitPrice,
+    total: item.total ?? item.quantity * item.unitPrice,
+  }));
+  const subtotal = lineItems.reduce((sum, item) => sum + item.total, 0);
+  const number = await nextInvoiceNumber();
+  const dueDays = input.dueDays ?? 7;
+
+  const invoice = await prisma.invoice.create({
+    data: {
+      number,
+      clientId: input.clientId,
+      status: "UNPAID",
+      currency,
+      subtotal,
+      discountMinor: 0,
+      taxMinor: 0,
+      total: subtotal,
+      dueAt: new Date(Date.now() + dueDays * 24 * 60 * 60 * 1000),
+      items: { create: lineItems },
+      snapshot: input.note
+        ? ({ customNote: input.note } as object)
+        : undefined,
+    },
+    include: { items: true, client: true },
+  });
+
+  await writeAuditLog({
+    actorId: input.actorId,
+    action: "invoice.create_custom",
+    entityType: "invoice",
+    entityId: invoice.id,
+    metadata: { note: input.note },
+  });
+
+  await enqueueEmail({
+    to: client.email,
+    subject: `Invoice ${invoice.number}`,
+    template: "invoice",
+    payload: {
+      invoiceNumber: invoice.number,
+      clientName: client.name,
+      total: formatMoney(invoice.total, invoice.currency),
+      currency: invoice.currency,
+    },
+  }).catch(() => undefined);
+
+  return invoice;
+}
+
+export function isCreditDepositInvoice(invoice: {
+  items: Array<{ description: string }>;
+}) {
+  return (
+    invoice.items.length === 1 &&
+    invoice.items[0]?.description === "Credit deposit"
+  );
 }
 
 export async function deleteInvoice(idOrNumber: string, actorId?: string) {

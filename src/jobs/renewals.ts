@@ -63,6 +63,9 @@ async function runRenewalsSweep(): Promise<CronMetrics> {
       await getSetting("billing.suspendDays", 2),
     ),
   );
+  const suspensionWarningDays = Number(
+    await getSetting("cron.suspensionWarningDays", 1),
+  );
   const invoiceDueDays = Number(await getSetting("cron.invoiceDueDays", 7));
   const dueHorizon = new Date(now);
   dueHorizon.setDate(dueHorizon.getDate() + Math.max(0, invoiceDueDays));
@@ -158,6 +161,31 @@ async function runRenewalsSweep(): Promise<CronMetrics> {
     const graceEnd = new Date(dueAt);
     graceEnd.setDate(graceEnd.getDate() + suspendDays);
 
+    const warningStart = new Date(graceEnd);
+    warningStart.setDate(
+      warningStart.getDate() - Math.max(0, suspensionWarningDays),
+    );
+
+    if (
+      service.status === "ACTIVE" &&
+      now >= warningStart &&
+      now < graceEnd
+    ) {
+      const productName = `${service.plan.product.name} / ${service.plan.name}`;
+      await enqueueEmail({
+        to: service.client.email,
+        subject: `Suspension pending — ${productName}`,
+        template: "suspension_warning",
+        payload: {
+          clientName: service.client.name,
+          serviceName: productName,
+          invoiceNumber: openRenewal.number,
+          total: formatMoney(openRenewal.total, openRenewal.currency),
+          currency: openRenewal.currency,
+        },
+      }).catch(() => undefined);
+    }
+
     if (service.status === "ACTIVE" && now > graceEnd) {
       await enqueueProvision({
         action: "suspend",
@@ -215,7 +243,7 @@ export async function processDailyCron(_job: Job) {
     );
     const closeTicketDays = Number(await getSetting("cron.closeTicketDays", 7));
 
-    // Invoice reminders
+    // Invoice reminders (due soon)
     const reminderBefore = new Date(now);
     reminderBefore.setDate(reminderBefore.getDate() + reminderDays);
     const dueSoon = await prisma.invoice.findMany({
@@ -240,6 +268,38 @@ export async function processDailyCron(_job: Job) {
       }).catch(() => undefined);
     }
 
+    // Overdue invoice reminders
+    const overdue = await prisma.invoice.findMany({
+      where: {
+        status: "UNPAID",
+        dueAt: { lt: now },
+      },
+      include: { client: true },
+      take: 200,
+    });
+    const { runAutomation } = await import("@/src/domains/automation/service");
+    for (const inv of overdue) {
+      await enqueueEmail({
+        to: inv.client.email,
+        subject: `Overdue: invoice ${inv.number}`,
+        template: "overdue",
+        payload: {
+          invoiceNumber: inv.number,
+          clientName: inv.client.name,
+          total: formatMoney(inv.total, inv.currency),
+          currency: inv.currency,
+        },
+      }).catch(() => undefined);
+      await runAutomation("INVOICE_OVERDUE", {
+        event: "invoice.overdue",
+        invoiceId: inv.id,
+        invoiceNumber: inv.number,
+        clientId: inv.clientId,
+        clientEmail: inv.client.email,
+        total: inv.total,
+      }).catch(() => undefined);
+    }
+
     // invoiceDueDays is applied in renewals sweep (create invoices X days before nextDueAt)
     void invoiceDueDays;
 
@@ -258,10 +318,35 @@ export async function processDailyCron(_job: Job) {
         dueAt: { lte: deleteBefore },
         serviceId: { not: null },
       },
-      include: { service: true },
+      include: { service: true, client: true },
       take: 100,
     });
     for (const inv of overdueInvoices) {
+      if (inv.serviceId && inv.service) {
+        const serviceName = inv.service.hostname
+          ? inv.service.hostname
+          : `Service #${inv.service.number}`;
+        await enqueueEmail({
+          to: inv.client.email,
+          subject: `Service terminated — ${serviceName}`,
+          template: "termination_warning",
+          payload: {
+            clientName: inv.client.name,
+            serviceName,
+            invoiceNumber: inv.number,
+          },
+        }).catch(() => undefined);
+
+        const { runAutomation } = await import(
+          "@/src/domains/automation/service"
+        );
+        await runAutomation("SERVICE_TERMINATED", {
+          event: "service.terminated",
+          serviceId: inv.serviceId,
+          clientId: inv.clientId,
+          invoiceId: inv.id,
+        }).catch(() => undefined);
+      }
       if (inv.serviceId) {
         await enqueueProvision({
           action: "terminate",

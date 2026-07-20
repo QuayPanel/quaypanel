@@ -6,6 +6,7 @@ export type CheckoutInput = {
   currency: string;
   customerEmail: string;
   customerName: string;
+  customerId?: string;
   successUrl: string;
   cancelUrl: string;
   metadata?: Record<string, string>;

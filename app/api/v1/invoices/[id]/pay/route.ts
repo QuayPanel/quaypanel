@@ -8,7 +8,7 @@ import {
   createCheckoutForInvoice,
   payInvoiceSchema,
 } from "@/src/domains/payments/service";
-import { getInvoice } from "@/src/domains/invoices/service";
+import { getInvoice, canPayInvoiceAsClient } from "@/src/domains/invoices/service";
 import { ForbiddenError } from "@/src/core/errors";
 
 type Params = { params: Promise<{ id: string }> };
@@ -20,7 +20,9 @@ export async function POST(request: Request, { params }: Params) {
     const invoice = await getInvoice(id);
 
     if (useOwnClientScope(ctx, request)) {
-      if (invoice.clientId !== ctx.clientId) throw new ForbiddenError();
+      if (!ctx.clientId) throw new ForbiddenError();
+      const allowed = await canPayInvoiceAsClient(ctx.clientId, invoice);
+      if (!allowed) throw new ForbiddenError();
     } else {
       requireStaff(auth);
     }

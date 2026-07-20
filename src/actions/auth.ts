@@ -8,6 +8,7 @@ import { enqueueEmail } from "@/src/core/queue";
 import { headers } from "next/headers";
 import { getSetting } from "@/src/domains/settings/service";
 import { ValidationError } from "@/src/core/errors";
+import { acceptTermsForClient, getTermsPage } from "@/src/domains/legal/service";
 
 const registerSchema = z
   .object({
@@ -40,10 +41,17 @@ export async function registerClientAction(
 
   const data = registerSchema.parse(input);
 
-  const termsUrl = String(
+  const terms = await getTermsPage().catch(() => null);
+  if (terms?.published) {
+    if (!data.acceptedTerms) {
+      throw new ValidationError("Please agree to the Terms of Service");
+    }
+  }
+
+  const legacyTermsUrl = String(
     (await getSetting("legal.termsUrl", "")) ?? "",
   ).trim();
-  if (termsUrl && !data.acceptedTerms) {
+  if (!terms?.published && legacyTermsUrl && !data.acceptedTerms) {
     throw new ValidationError("Please agree to the Terms of Service");
   }
 
@@ -78,6 +86,10 @@ export async function registerClientAction(
       clientId: client.id,
     },
   });
+
+  if (terms?.published && data.acceptedTerms) {
+    await acceptTermsForClient(client.id);
+  }
 
   await enqueueEmail({
     to: data.email,

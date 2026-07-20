@@ -8,6 +8,7 @@ import {
   clearServiceCancellation,
   deleteService,
   getService,
+  getServiceConsoleLink,
   requestServiceAction,
   requestServiceCancellation,
   serviceActionSchema,
@@ -60,6 +61,17 @@ export async function POST(request: Request, { params }: Params) {
         requireStaff(auth);
       }
       return jsonOk(await upgradeService(id, body, ctx.userId));
+    }
+
+    if (json?.action === "console") {
+      const service = await getService(id);
+      if (useOwnClientScope(ctx, request)) {
+        if (service.clientId !== ctx.clientId) throw new ForbiddenError();
+      } else {
+        requireStaff(auth);
+      }
+      const link = await getServiceConsoleLink(id);
+      return jsonOk({ console: link });
     }
 
     if (json?.action === "cancel") {

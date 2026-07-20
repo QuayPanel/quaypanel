@@ -24,6 +24,9 @@ export const clientCreateSchema = z.object({
 
 export const clientUpdateSchema = clientCreateSchema.partial().extend({
   isAdmin: z.boolean().optional(),
+  notes: z.string().nullable().optional(),
+  riskFlags: z.array(z.string()).optional(),
+  requireApproval: z.boolean().optional(),
 });
 
 /** Resolve client by public number (`1`) or internal cuid. */
@@ -62,6 +65,12 @@ export async function getClient(idOrNumber: string) {
     ...client,
     isAdmin: users.some((u) => u.role === "ADMIN"),
     hasUserAccount: users.length > 0,
+    users: users.map((u) => ({
+      id: u.id,
+      email: u.email,
+      role: u.role,
+      name: u.name,
+    })),
   };
 }
 
@@ -89,7 +98,7 @@ async function linkedUsersForClient(clientId: string, email: string) {
     where: {
       OR: [{ clientId }, { email }],
     },
-    select: { id: true, role: true },
+    select: { id: true, role: true, email: true, name: true },
   });
 }
 

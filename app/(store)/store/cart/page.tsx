@@ -37,13 +37,19 @@ export default function StoreCartPage() {
     ["public-settings"],
     "/api/v1/settings?public=1",
   );
+  const { data: termsPage } = useApiQuery<{ published: boolean; title: string }>(
+    ["legal-terms"],
+    "/api/v1/legal/terms",
+  );
 
   const [lines, setLines] = useState<CartLine[]>([]);
   const [couponCode, setCouponCode] = useState("");
   const [termsAccepted, setTermsAccepted] = useState(false);
   const [ordering, setOrdering] = useState(false);
 
-  const termsUrl = String(settings?.["legal.termsUrl"] ?? "").trim();
+  const legacyTermsUrl = String(settings?.["legal.termsUrl"] ?? "").trim();
+  const requiresTerms = Boolean(termsPage?.published || legacyTermsUrl);
+  const termsHref = termsPage?.published ? "/legal/terms" : legacyTermsUrl;
 
   function refresh() {
     setLines(getCartLines());
@@ -73,7 +79,7 @@ export default function StoreCartPage() {
       toast.error("Your cart is empty");
       return;
     }
-    if (termsUrl && !termsAccepted) {
+    if (requiresTerms && !termsAccepted) {
       toast.error("Please agree to the Terms of Service");
       return;
     }
@@ -88,6 +94,7 @@ export default function StoreCartPage() {
           clientId: me.clientId,
           couponCode: couponCode || undefined,
             affiliateCode: getCookie("qp_aff") || undefined,
+          acceptedTerms: requiresTerms ? termsAccepted : undefined,
           items: lines.map((line) => ({
             planId: line.planId,
             quantity: line.quantity,
@@ -194,7 +201,7 @@ export default function StoreCartPage() {
                   placeholder="Optional"
                 />
               </div>
-              {termsUrl ? (
+              {requiresTerms ? (
                 <label className="flex items-start gap-2 text-sm">
                   <input
                     type="checkbox"
@@ -204,14 +211,24 @@ export default function StoreCartPage() {
                   />
                   <span>
                     I agree to the{" "}
-                    <a
-                      href={termsUrl}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="text-primary underline"
-                    >
-                      Terms of Service
-                    </a>
+                    {termsPage?.published ? (
+                      <Link
+                        href="/legal/terms"
+                        target="_blank"
+                        className="text-primary underline"
+                      >
+                        {termsPage.title || "Terms of Service"}
+                      </Link>
+                    ) : (
+                      <a
+                        href={termsHref}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="text-primary underline"
+                      >
+                        Terms of Service
+                      </a>
+                    )}
                   </span>
                 </label>
               ) : null}

@@ -57,7 +57,18 @@ export default function ClientInvoiceDetailPage() {
     <PageMotion>
       <div className="mb-6 flex items-center justify-between">
         <h1 className="text-2xl font-semibold">Invoice {invoice.number}</h1>
-        <Badge>{invoice.status}</Badge>
+        <div className="flex items-center gap-2">
+          <Button asChild variant="outline" size="sm">
+            <a
+              href={`/api/v1/invoices/${encodeURIComponent(invoice.number)}/pdf`}
+              target="_blank"
+              rel="noreferrer"
+            >
+              Download PDF
+            </a>
+          </Button>
+          <Badge>{invoice.status}</Badge>
+        </div>
       </div>
       <Card>
         <CardHeader>

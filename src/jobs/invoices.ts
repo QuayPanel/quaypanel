@@ -49,20 +49,52 @@ export async function processInvoicePaidJob(job: Job<InvoicePaidJobData>) {
     },
   });
 
+  const { isCreditDepositInvoice } = await import(
+    "@/src/domains/invoices/service"
+  );
+  if (isCreditDepositInvoice(invoice)) {
+    const { settleCreditDepositFromInvoice } = await import(
+      "@/src/domains/credits/service"
+    );
+    await settleCreditDepositFromInvoice(
+      invoice.clientId,
+      invoice.total,
+      invoice.id,
+    ).catch(() => undefined);
+  }
+
+  const { runAutomation } = await import("@/src/domains/automation/service");
+  await runAutomation("ORDER_PAID", {
+    event: "invoice.paid",
+    invoiceId: invoice.id,
+    orderId: invoice.orderId,
+    clientId: invoice.clientId,
+    clientEmail: invoice.client.email,
+    total: invoice.total,
+  }).catch(() => undefined);
+
   if (invoice.couponId) {
     await incrementCouponUses(invoice.couponId).catch(() => undefined);
   }
 
   if (invoice.orderId && !invoice.serviceId) {
-    await createServicesFromPaidOrder(invoice.orderId);
-    if (invoice.order?.affiliateCode) {
-      await recordAffiliateCommission({
-        affiliateCode: invoice.order.affiliateCode,
-        orderId: invoice.orderId,
-        invoiceId: invoice.id,
-        referredClientId: invoice.clientId,
-        orderTotal: invoice.total,
-      });
+    const order = invoice.order ??
+      (await prisma.order.findUnique({ where: { id: invoice.orderId } }));
+    const reviewStatus = order?.reviewStatus ?? "NONE";
+    const canProvision =
+      reviewStatus === "NONE" || reviewStatus === "APPROVED";
+
+    if (canProvision) {
+      await createServicesFromPaidOrder(invoice.orderId);
+      if (order?.affiliateCode) {
+        await recordAffiliateCommission({
+          affiliateCode: order.affiliateCode,
+          orderId: invoice.orderId,
+          invoiceId: invoice.id,
+          referredClientId: invoice.clientId,
+          orderTotal: invoice.total,
+        });
+      }
     }
   }
 

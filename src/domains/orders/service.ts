@@ -15,6 +15,8 @@ import {
 } from "@/src/domains/billing/price-formula";
 import { formatMoney } from "@/src/core/utils";
 import { applyCreditsToAmount } from "@/src/domains/credits/service";
+import { notifyStaffIfEnabled } from "@/src/domains/ops/notify";
+import { shouldRequireOrderReview } from "@/src/domains/fraud/service";
 
 const orderItemConfigSchema = z.object({
   configOptionId: z.string().min(1),
@@ -30,6 +32,7 @@ export const orderCreateSchema = z.object({
   clientId: z.string().min(1),
   couponCode: z.string().optional(),
   affiliateCode: z.string().optional(),
+  acceptedTerms: z.boolean().optional(),
   items: z
     .array(
       z.object({
@@ -155,6 +158,7 @@ async function resolveConfigExtra(
 export async function createOrder(
   data: z.infer<typeof orderCreateSchema>,
   actorId?: string,
+  context?: { ip?: string | null },
 ) {
   const client = await prisma.client.findUnique({
     where: { id: data.clientId },
@@ -237,6 +241,24 @@ export async function createOrder(
     priced.total,
   );
 
+  const needsReview = await shouldRequireOrderReview({
+    clientId: data.clientId,
+    email: client.email,
+    ip: context?.ip,
+    country: client.country,
+  });
+
+  const { getTermsPage, acceptTermsForClient } = await import(
+    "@/src/domains/legal/service"
+  );
+  const terms = await getTermsPage().catch(() => null);
+  if (terms?.published) {
+    if (!data.acceptedTerms) {
+      throw new ValidationError("Please agree to the Terms of Service");
+    }
+    await acceptTermsForClient(data.clientId);
+  }
+
   const order = await prisma.order.create({
     data: {
       clientId: data.clientId,
@@ -248,6 +270,7 @@ export async function createOrder(
       couponId: coupon?.id,
       affiliateCode: data.affiliateCode?.toLowerCase(),
       status: "PENDING",
+      reviewStatus: needsReview ? "PENDING_REVIEW" : "NONE",
       items: { create: lineItems },
     },
     include: {
@@ -277,6 +300,29 @@ export async function createOrder(
     entityId: order.id,
     metadata: { invoiceId: invoice.id, creditsUsed: used },
   });
+
+  const brand = String(await getSetting("brand.name", "QuayPanel"));
+  await notifyStaffIfEnabled(
+    "ops.notifyStaffOnOrder",
+    `New order #${order.number} — ${brand}`,
+    `<p>Order <strong>#${order.number}</strong> was placed by ${client.name} (${client.email}).</p><p>Total: ${formatMoney(order.total, order.currency)}</p>`,
+  ).catch(() => undefined);
+
+  if (needsReview) {
+    await notifyStaffIfEnabled(
+      "ops.notifyStaffOnFraud",
+      `Order #${order.number} requires review — ${brand}`,
+      `<p>Order <strong>#${order.number}</strong> from ${client.email} is pending fraud review.</p>`,
+    ).catch(() => undefined);
+
+    const { runAutomation } = await import("@/src/domains/automation/service");
+    await runAutomation("FRAUD_HOLD", {
+      event: "order.fraud_hold",
+      orderId: order.id,
+      clientId: order.clientId,
+      clientEmail: client.email,
+    }).catch(() => undefined);
+  }
 
   return getOrder(order.id);
 }

@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -14,6 +15,7 @@ import { formatMoney } from "@/src/core/utils";
 
 type Service = {
   id: string;
+  number?: number;
   status: string;
   nextDueAt: string | null;
   cancelAt: string | null;
@@ -177,9 +179,14 @@ export default function ClientServicesPage() {
             return (
               <Card key={service.id}>
                 <CardHeader className="flex flex-row items-center justify-between">
-                  <CardTitle className="text-base">
+                <CardTitle className="text-base">
+                  <Link
+                    href={`/client/services/${service.number ?? service.id}`}
+                    className="hover:underline"
+                  >
                     {service.plan.product.name} / {service.plan.name}
-                  </CardTitle>
+                  </Link>
+                </CardTitle>
                   <Badge>{service.status}</Badge>
                 </CardHeader>
                 <CardContent className="space-y-3">

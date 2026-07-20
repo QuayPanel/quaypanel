@@ -7,6 +7,8 @@ import {
 import {
   deleteInvoice,
   getInvoice,
+  canAccessInvoiceAsClient,
+  canPayInvoiceAsClient,
   invoiceUpdateSchema,
   updateInvoice,
   voidInvoice,
@@ -21,7 +23,9 @@ export async function GET(request: Request, { params }: Params) {
     const { id } = await params;
     const invoice = await getInvoice(id);
     if (useOwnClientScope(ctx, request)) {
-      if (invoice.clientId !== ctx.clientId) throw new ForbiddenError();
+      if (!ctx.clientId) throw new ForbiddenError();
+      const allowed = await canAccessInvoiceAsClient(ctx.clientId, invoice);
+      if (!allowed) throw new ForbiddenError();
     } else {
       requireStaff(auth);
     }

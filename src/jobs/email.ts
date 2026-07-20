@@ -1,16 +1,12 @@
 import type { Job } from "bullmq";
 import { logger } from "@/src/core/logger";
 import { sendTemplatedEmail } from "@/src/email/send";
+import type { EmailTemplateKey } from "@/src/email/defaults";
 
 export type EmailJobData = {
   to: string;
   subject: string;
-  template:
-    | "invoice"
-    | "receipt"
-    | "welcome"
-    | "ticket_reply"
-    | "cron_failure";
+  template: EmailTemplateKey;
   payload: Record<string, unknown>;
 };
 

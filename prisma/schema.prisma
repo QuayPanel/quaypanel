@@ -83,6 +83,55 @@ enum PlanType {
   RECURRING
 }
 
+enum OrderReviewStatus {
+  NONE
+  PENDING_REVIEW
+  APPROVED
+  REJECTED
+}
+
+enum QuoteStatus {
+  DRAFT
+  SENT
+  ACCEPTED
+  DECLINED
+  CONVERTED
+  CANCELLED
+}
+
+enum AffiliatePayoutStatus {
+  PENDING
+  APPROVED
+  PAID
+  REJECTED
+}
+
+enum GdprRequestType {
+  EXPORT
+  DELETE
+}
+
+enum GdprRequestStatus {
+  PENDING
+  COMPLETED
+  REJECTED
+}
+
+enum AutomationTrigger {
+  ORDER_PAID
+  INVOICE_OVERDUE
+  SERVICE_SUSPENDED
+  SERVICE_TERMINATED
+  TICKET_OPENED
+  FRAUD_HOLD
+}
+
+enum AutomationActionType {
+  EMAIL
+  WEBHOOK
+  CREATE_TICKET
+}
+
 enum BillingPeriod {
   DAY
   WEEK
@@ -114,6 +163,8 @@ model User {
   emailVerified  Boolean         @default(false)
   image          String?
   role           Role            @default(CLIENT)
+  /// JSON string array of permission keys for STAFF (ADMIN ignores / has all)
+  permissions    Json            @default("[]")
   clientId       String?
   client         Client?         @relation(fields: [clientId], references: [id], onDelete: SetNull)
   createdAt      DateTime        @default(now())
@@ -123,6 +174,7 @@ model User {
   apiKeys        ApiKey[]
   auditLogs      AuditLog[]
   ticketMessages TicketMessage[]
+  loginEvents    LoginEvent[]
 
   @@map("user")
 }
@@ -190,7 +242,12 @@ model Client {
   creditBalanceMinor      Int                @default(0)
   stripeCustomerId        String?
   defaultPaymentMethodId  String?
+  notes                   String?
+  riskFlags               Json               @default("[]")
+  requireApproval         Boolean            @default(false)
   tenantId                String?
+  tosAcceptedAt           DateTime?
+  tosVersion              String?
   createdAt               DateTime           @default(now())
   updatedAt               DateTime           @updatedAt
   users                   User[]
@@ -201,6 +258,10 @@ model Client {
   affiliate               Affiliate?
   creditLedger            CreditTransaction[]
   carts                   Cart[]
+  quotes                  Quote[]
+  serviceContributors     ServiceContributor[]
+  affiliatePayouts        AffiliatePayout[]
+  gdprRequests            GdprRequest[]
 
   @@index([stripeCustomerId])
   @@map("client")
@@ -338,25 +399,28 @@ model ConfigOptionChoice {
 }
 
 model Order {
-  id            String      @id @default(cuid())
-  number        Int         @unique @default(autoincrement())
+  id            String            @id @default(cuid())
+  number        Int               @unique @default(autoincrement())
   clientId      String
-  client        Client      @relation(fields: [clientId], references: [id], onDelete: Cascade)
-  status        OrderStatus @default(PENDING)
-  currency      String      @default("USD")
-  subtotal      Int         @default(0)
-  discountMinor Int         @default(0)
-  taxMinor      Int         @default(0)
-  total         Int         @default(0)
+  client        Client            @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  status        OrderStatus       @default(PENDING)
+  reviewStatus  OrderReviewStatus @default(NONE)
+  reviewNote    String?
+  currency      String            @default("USD")
+  subtotal      Int               @default(0)
+  discountMinor Int               @default(0)
+  taxMinor      Int               @default(0)
+  total         Int               @default(0)
   couponId      String?
-  coupon        Coupon?     @relation(fields: [couponId], references: [id], onDelete: SetNull)
+  coupon        Coupon?           @relation(fields: [couponId], references: [id], onDelete: SetNull)
   affiliateCode String?
-  createdAt     DateTime    @default(now())
-  updatedAt     DateTime    @updatedAt
+  createdAt     DateTime          @default(now())
+  updatedAt     DateTime          @updatedAt
   items         OrderItem[]
   invoices      Invoice[]
   referrals     AffiliateReferral[]
 
+  @@index([reviewStatus])
   @@map("order")
 }
 
@@ -440,6 +504,7 @@ model Service {
   createdAt         DateTime      @default(now())
   updatedAt         DateTime      @updatedAt
   invoices          Invoice[]
+  contributors      ServiceContributor[]
 
   @@index([status, nextDueAt])
   @@index([cancelAt])
@@ -504,6 +569,7 @@ model Affiliate {
   createdAt          DateTime            @default(now())
   updatedAt          DateTime            @updatedAt
   referrals          AffiliateReferral[]
+  payouts            AffiliatePayout[]
 
   @@map("affiliate")
 }
@@ -770,5 +836,152 @@ model KnowledgeArticle {
 
   @@index([categoryId, sortOrder])
   @@map("knowledge_article")
+}
+
+model LoginEvent {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  ipAddress String?
+  userAgent String?
+  success   Boolean  @default(true)
+  createdAt DateTime @default(now())
+
+  @@index([userId, createdAt])
+  @@map("login_event")
+}
+
+model FraudBlock {
+  id        String   @id @default(cuid())
+  type      String
+  value     String
+  note      String?
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([type, value])
+  @@map("fraud_block")
+}
+
+model Announcement {
+  id          String    @id @default(cuid())
+  title       String
+  body        String
+  audience    String    @default("client")
+  active      Boolean   @default(true)
+  startsAt    DateTime?
+  endsAt      DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@index([active, startsAt])
+  @@map("announcement")
+}
+
+model Quote {
+  id            String      @id @default(cuid())
+  number        Int         @unique @default(autoincrement())
+  clientId      String
+  client        Client      @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  status        QuoteStatus @default(DRAFT)
+  currency      String      @default("USD")
+  subtotal      Int         @default(0)
+  taxMinor      Int         @default(0)
+  total         Int         @default(0)
+  note          String?
+  validUntil    DateTime?
+  invoiceId     String?
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+  items         QuoteItem[]
+
+  @@index([clientId, status])
+  @@map("quote")
+}
+
+model QuoteItem {
+  id          String @id @default(cuid())
+  quoteId     String
+  quote       Quote  @relation(fields: [quoteId], references: [id], onDelete: Cascade)
+  description String
+  quantity    Int    @default(1)
+  unitPrice   Int
+  total       Int
+
+  @@map("quote_item")
+}
+
+model ServiceContributor {
+  id        String   @id @default(cuid())
+  serviceId String
+  service   Service  @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+  clientId  String
+  client    Client   @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  email     String?
+  canPay    Boolean  @default(true)
+  createdAt DateTime @default(now())
+
+  @@unique([serviceId, clientId])
+  @@index([clientId])
+  @@map("service_contributor")
+}
+
+model AffiliatePayout {
+  id          String                @id @default(cuid())
+  affiliateId String
+  affiliate   Affiliate             @relation(fields: [affiliateId], references: [id], onDelete: Cascade)
+  clientId    String
+  client      Client                @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  amountMinor Int
+  status      AffiliatePayoutStatus @default(PENDING)
+  note        String?
+  createdAt   DateTime              @default(now())
+  updatedAt   DateTime              @updatedAt
+
+  @@index([status])
+  @@map("affiliate_payout")
+}
+
+model AutomationRule {
+  id         String                @id @default(cuid())
+  name       String
+  enabled    Boolean               @default(true)
+  trigger    AutomationTrigger
+  actionType AutomationActionType
+  config     Json                  @default("{}")
+  createdAt  DateTime              @default(now())
+  updatedAt  DateTime              @updatedAt
+
+  @@index([enabled, trigger])
+  @@map("automation_rule")
+}
+
+model LegalPage {
+  id        String   @id @default(cuid())
+  slug      String   @unique
+  title     String
+  body      String
+  version   String   @default("1")
+  published Boolean  @default(true)
+  updatedAt DateTime @updatedAt
+  createdAt DateTime @default(now())
+
+  @@map("legal_page")
+}
+
+model GdprRequest {
+  id          String            @id @default(cuid())
+  clientId    String
+  client      Client            @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  type        GdprRequestType
+  status      GdprRequestStatus @default(PENDING)
+  note        String?
+  payload     Json?
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+
+  @@index([status])
+  @@map("gdpr_request")
 }
 

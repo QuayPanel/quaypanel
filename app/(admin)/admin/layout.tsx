@@ -24,6 +24,11 @@ import {
   Puzzle,
   Mail,
   Inbox,
+  ShieldAlert,
+  Shield,
+  Megaphone,
+  BarChart3,
+  Workflow,
 } from "lucide-react";
 import { getSessionUser } from "@/src/auth/session";
 import { BrandMark } from "@/components/brand-mark";
@@ -87,8 +92,10 @@ const navGroups: NavGroup[] = [
     links: [
       { href: "/admin/orders", label: "Orders", icon: ShoppingCart },
       { href: "/admin/invoices", label: "Invoices", icon: FileText },
+      { href: "/admin/quotes", label: "Quotes", icon: FileText },
       { href: "/admin/payments", label: "Payments", icon: CreditCard },
       { href: "/admin/coupons", label: "Coupons", icon: Percent },
+      { href: "/admin/reports", label: "Reports", icon: BarChart3 },
     ],
   },
   {
@@ -97,11 +104,16 @@ const navGroups: NavGroup[] = [
       { href: "/admin/tickets", label: "Tickets", icon: Ticket },
       { href: "/admin/affiliates", label: "Affiliates", icon: Handshake },
       { href: "/admin/knowledge", label: "Knowledge base", icon: BookOpen },
+      { href: "/admin/fraud", label: "Fraud & review", icon: ShieldAlert },
+      { href: "/admin/gdpr", label: "GDPR", icon: Shield },
+      { href: "/admin/announcements", label: "Announcements", icon: Megaphone },
+      { href: "/admin/automation", label: "Automation", icon: Workflow },
     ],
   },
   {
     label: "System",
     links: [
+      { href: "/admin/staff", label: "Staff", icon: Users },
       { href: "/admin/settings", label: "Settings", icon: Settings },
       { href: "/admin/email-templates", label: "Email templates", icon: Mail },
       { href: "/admin/email-logs", label: "Email logs", icon: Inbox },

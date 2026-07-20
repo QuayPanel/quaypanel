@@ -462,5 +462,41 @@ export function createPterodactylProvider(): ProvisioningProvider {
         { method: "DELETE" },
       );
     },
+
+    async getConsoleUrl(service: ServiceContext) {
+      const credentials = await loadCredentials();
+      const identifier =
+        service.hostname ||
+        (service.externalId
+          ? await resolvePteroIdentifier(credentials, service.externalId)
+          : null);
+      if (!identifier) return null;
+      return {
+        url: `${credentials.baseUrl}/server/${identifier}`,
+        label: "Open Pterodactyl panel",
+      };
+    },
   };
+}
+
+async function resolvePteroIdentifier(
+  credentials: PteroCredentials,
+  externalId: string,
+): Promise<string | null> {
+  try {
+    const res = await pteroFetch(
+      credentials,
+      `/api/application/servers/${externalId}`,
+    );
+    const json = (await res.json()) as {
+      attributes?: { identifier?: string; uuid?: string };
+    };
+    return (
+      json.attributes?.identifier ||
+      json.attributes?.uuid?.slice(0, 8) ||
+      null
+    );
+  } catch {
+    return null;
+  }
 }

@@ -154,6 +154,17 @@ export default function EditInvoicePage({
       onConfirmDelete={() => destroy.mutate()}
       deleting={destroy.isPending}
     >
+      <div className="mb-4">
+        <Button asChild variant="outline" size="sm">
+          <a
+            href={`/api/v1/invoices/${encodeURIComponent(invoice.number)}/pdf`}
+            target="_blank"
+            rel="noreferrer"
+          >
+            Download PDF
+          </a>
+        </Button>
+      </div>
       <Card>
         <CardHeader>
           <CardTitle>Details</CardTitle>

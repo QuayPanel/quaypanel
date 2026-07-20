@@ -20,4 +20,7 @@ export const noopProvisioningProvider: ProvisioningProvider = {
   async terminate(service: ServiceContext) {
     logger.info({ service }, "Noop terminate");
   },
+  async getConsoleUrl() {
+    return null;
+  },
 };

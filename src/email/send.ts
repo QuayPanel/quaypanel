@@ -182,3 +182,67 @@ export async function sendSmtpTestEmail() {
     throw new ValidationError(`SMTP test failed: ${message}`);
   }
 }
+
+export async function sendBroadcastEmail(params: {
+  to: string;
+  subject: string;
+  html: string;
+}) {
+  const { transporter, from } = await getTransporter();
+  const subject = params.subject.trim();
+  const html = params.html;
+  const text = htmlToPlainText(html);
+
+  if (!transporter) {
+    logger.info({ to: params.to, subject }, "SMTP not configured — broadcast logged only");
+    await prisma.emailLog
+      .create({
+        data: {
+          to: params.to,
+          from,
+          subject,
+          status: "logged",
+          templateKey: "broadcast",
+          html,
+        },
+      })
+      .catch(() => undefined);
+    return;
+  }
+
+  try {
+    await transporter.sendMail({
+      from,
+      to: params.to,
+      subject,
+      html,
+      text,
+    });
+    await prisma.emailLog.create({
+      data: {
+        to: params.to,
+        from,
+        subject,
+        status: "sent",
+        templateKey: "broadcast",
+        html,
+      },
+    });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "Send failed";
+    await prisma.emailLog
+      .create({
+        data: {
+          to: params.to,
+          from,
+          subject,
+          status: "failed",
+          templateKey: "broadcast",
+          html,
+          error: message,
+        },
+      })
+      .catch(() => undefined);
+    throw err;
+  }
+}

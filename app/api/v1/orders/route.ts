@@ -36,6 +36,12 @@ export async function POST(request: Request) {
       requireStaff(auth);
     }
 
-    return jsonOk(await createOrder(body, ctx.userId), { status: 201 });
+    const ip =
+      request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
+      request.headers.get("x-real-ip") ||
+      null;
+    return jsonOk(await createOrder(body, ctx.userId, { ip }), {
+      status: 201,
+    });
   });
 }

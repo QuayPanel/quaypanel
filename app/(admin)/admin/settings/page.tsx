@@ -650,6 +650,10 @@ export default function AdminSettingsPage() {
                     "Suspend server if invoice is x days overdue",
                   ],
                   [
+                    "cron.suspensionWarningDays",
+                    "Send suspension warning x days before suspend",
+                  ],
+                  [
                     "cron.deleteOverdueDays",
                     "Delete server if invoice is x days overdue",
                   ],
@@ -789,6 +793,22 @@ export default function AdminSettingsPage() {
                 />
                 <FieldHint>
                   Used for new enrollments and as the base rate before milestones.
+                </FieldHint>
+              </div>
+              <div className="space-y-2">
+                <Label>Referral cookie days</Label>
+                <Input
+                  type="number"
+                  min={1}
+                  max={365}
+                  inputMode="numeric"
+                  value={str(form["affiliates.cookieDays"], "30")}
+                  onChange={(e) =>
+                    set("affiliates.cookieDays", Number(e.target.value))
+                  }
+                />
+                <FieldHint>
+                  How long affiliate referral cookies remain valid after a visit.
                 </FieldHint>
               </div>
               <div className="md:col-span-2 space-y-3">
@@ -1144,6 +1164,30 @@ export default function AdminSettingsPage() {
                 checked={bool(form["auth.disableRegistration"])}
                 onChange={(v) => set("auth.disableRegistration", v)}
               />
+              <div className="border-t pt-4">
+                <p className="mb-3 text-sm font-medium">Staff notifications</p>
+                <div className="space-y-3">
+                  <ToggleField
+                    label="Notify on new orders"
+                    checked={bool(form["ops.notifyStaffOnOrder"])}
+                    onChange={(v) => set("ops.notifyStaffOnOrder", v)}
+                  />
+                  <ToggleField
+                    label="Notify on new tickets"
+                    checked={bool(form["ops.notifyStaffOnTicket"])}
+                    onChange={(v) => set("ops.notifyStaffOnTicket", v)}
+                  />
+                  <ToggleField
+                    label="Notify on fraud review"
+                    checked={bool(form["ops.notifyStaffOnFraud"])}
+                    onChange={(v) => set("ops.notifyStaffOnFraud", v)}
+                  />
+                </div>
+                <FieldHint>
+                  Sends a short email to the system email address and all admin
+                  users when enabled.
+                </FieldHint>
+              </div>
               <ToggleField
                 label="Multi-tenant mode"
                 description="Scope clients by tenantId using the default tenant below."

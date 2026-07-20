@@ -76,6 +76,7 @@ export const settingsDefaults: Record<string, unknown> = {
   "cron.invoiceReminderDays": 3,
   "cron.cancelPendingOrderDays": 7,
   "cron.suspendOverdueDays": 2,
+  "cron.suspensionWarningDays": 1,
   "cron.deleteOverdueDays": 14,
   "cron.deleteEmailLogsDays": 90,
   "cron.closeTicketDays": 7,
@@ -129,6 +130,11 @@ export const settingsDefaults: Record<string, unknown> = {
     referrals: number;
     percent: number;
   }>,
+  "affiliates.cookieDays": 30,
+
+  "ops.notifyStaffOnOrder": false,
+  "ops.notifyStaffOnTicket": false,
+  "ops.notifyStaffOnFraud": false,
   "plugins.installed": [] as Array<{
     id: string;
     name: string;
@@ -138,6 +144,11 @@ export const settingsDefaults: Record<string, unknown> = {
   }>,
   "multiTenant.enabled": false,
   "multiTenant.defaultTenantId": "default",
+
+  "fraud.requireReviewAll": false,
+  "fraud.blockDisposableEmails": true,
+
+  "status.maintenanceMessage": "",
 };
 
 const optionalString = z.string().optional().nullable();
@@ -206,6 +217,7 @@ export const settingsUpdateSchema = z
     "cron.invoiceReminderDays": optionalInt,
     "cron.cancelPendingOrderDays": optionalInt,
     "cron.suspendOverdueDays": optionalInt,
+    "cron.suspensionWarningDays": optionalInt,
     "cron.deleteOverdueDays": optionalInt,
     "cron.deleteEmailLogsDays": optionalInt,
     "cron.closeTicketDays": optionalInt,
@@ -260,6 +272,11 @@ export const settingsUpdateSchema = z
         }),
       )
       .optional(),
+    "affiliates.cookieDays": optionalInt,
+
+    "ops.notifyStaffOnOrder": optionalBool,
+    "ops.notifyStaffOnTicket": optionalBool,
+    "ops.notifyStaffOnFraud": optionalBool,
     "plugins.installed": z
       .array(
         z.object({
@@ -273,6 +290,12 @@ export const settingsUpdateSchema = z
       .optional(),
     "multiTenant.enabled": optionalBool,
     "multiTenant.defaultTenantId": optionalString,
+
+    "fraud.requireReviewAll": optionalBool,
+    "fraud.blockDisposableEmails": optionalBool,
+
+    "status.maintenanceMessage": optionalString,
+
     // compat
     "billing.suspendDays": optionalInt,
   })
@@ -321,6 +344,7 @@ export const PUBLIC_SETTING_KEYS = [
   "oauth.discord.enabled",
   "ui.pageSize",
   "currency.rates",
+  "status.maintenanceMessage",
 ] as const;
 
 function migrateLegacy(map: Record<string, unknown>) {

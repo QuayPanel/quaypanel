@@ -1,4 +1,5 @@
 import { Queue } from "bullmq";
+import type { EmailTemplateKey } from "@/src/email/defaults";
 import { getRedisConnectionOptions } from "./redis-connection";
 
 const connection = getRedisConnectionOptions();
@@ -26,12 +27,7 @@ export function getQueue(name: QueueName): Queue {
 export async function enqueueEmail(data: {
   to: string;
   subject: string;
-  template:
-    | "invoice"
-    | "receipt"
-    | "welcome"
-    | "ticket_reply"
-    | "cron_failure";
+  template: EmailTemplateKey;
   payload: Record<string, unknown>;
 }) {
   try {

@@ -2,17 +2,19 @@ import Link from "next/link";
 import { BrandMark } from "@/components/brand-mark";
 import { listCategories } from "@/src/domains/categories/service";
 import { getSetting } from "@/src/domains/settings/service";
+import { listLegalPages } from "@/src/domains/legal/service";
 
 const QUAYPANEL_GITHUB = "https://github.com/QuayPanel";
 
 export async function SiteFooter() {
-  const [brandName, logoUrl, logoDisplay, termsUrl, categories] =
+  const [brandName, logoUrl, logoDisplay, termsUrl, categories, legalPages] =
     await Promise.all([
       getSetting("brand.name", "QuayPanel").then(String),
       getSetting("brand.logoUrl", "").then((v) => String(v ?? "").trim()),
       getSetting("theme.logoDisplay", "logo_name").then(String),
       getSetting("legal.termsUrl", "").then((v) => String(v ?? "").trim()),
       listCategories(true),
+      listLegalPages().catch(() => []),
     ]);
 
   const roots = categories.filter((c) => !c.parentId).slice(0, 8);
@@ -60,7 +62,17 @@ export async function SiteFooter() {
                 Client area
               </Link>
             </li>
-            {termsUrl ? (
+            {legalPages.map((page) => (
+              <li key={page.slug}>
+                <Link
+                  className="hover:text-foreground"
+                  href={`/legal/${page.slug}`}
+                >
+                  {page.title}
+                </Link>
+              </li>
+            ))}
+            {termsUrl && legalPages.every((p) => p.slug !== "terms") ? (
               <li>
                 <a
                   className="hover:text-foreground"

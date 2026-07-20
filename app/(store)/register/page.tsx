@@ -37,7 +37,16 @@ export default function RegisterPage() {
   const [loading, setLoading] = useState(false);
 
   const disabled = Boolean(settings?.["auth.disableRegistration"]);
-  const termsUrl = String(settings?.["legal.termsUrl"] || "").trim();
+  const { data: termsPage } = useApiQuery<{ published: boolean; title: string }>(
+    ["legal-terms"],
+    "/api/v1/legal/terms",
+    { enabled: Boolean(settings) },
+  );
+  const legacyTermsUrl = String(settings?.["legal.termsUrl"] || "").trim();
+  const requiresTerms = Boolean(
+    termsPage?.published || legacyTermsUrl,
+  );
+  const termsHref = termsPage?.published ? "/legal/terms" : legacyTermsUrl;
   const brandName = String(settings?.["brand.name"] || "QuayPanel");
 
   useEffect(() => {
@@ -53,7 +62,7 @@ export default function RegisterPage() {
       toast.error("Passwords do not match");
       return;
     }
-    if (termsUrl && !acceptedTerms) {
+    if (requiresTerms && !acceptedTerms) {
       toast.error("Please agree to the Terms of Service");
       return;
     }
@@ -74,7 +83,7 @@ export default function RegisterPage() {
         state,
         postalCode,
         country,
-        acceptedTerms: termsUrl ? acceptedTerms : undefined,
+        acceptedTerms: requiresTerms ? acceptedTerms : undefined,
       });
       const { error } = await authClient.signIn.email({ email, password });
       if (error) throw new Error(error.message);
@@ -275,7 +284,7 @@ export default function RegisterPage() {
           />
         </div>
 
-        {termsUrl ? (
+        {requiresTerms ? (
           <label className="flex items-start gap-2 text-sm">
             <input
               type="checkbox"
@@ -286,14 +295,24 @@ export default function RegisterPage() {
             />
             <span>
               I agree to the{" "}
-              <a
-                href={termsUrl}
-                target="_blank"
-                rel="noreferrer"
-                className="text-primary underline"
-              >
-                Terms of Service
-              </a>
+              {termsPage?.published ? (
+                <Link
+                  href="/legal/terms"
+                  target="_blank"
+                  className="text-primary underline"
+                >
+                  {termsPage.title || "Terms of Service"}
+                </Link>
+              ) : (
+                <a
+                  href={termsHref}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="text-primary underline"
+                >
+                  Terms of Service
+                </a>
+              )}
             </span>
           </label>
         ) : null}

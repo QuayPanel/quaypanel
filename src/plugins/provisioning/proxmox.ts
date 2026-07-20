@@ -105,4 +105,14 @@ export const proxmoxProvisioningProvider: ProvisioningProvider = {
       method: "DELETE",
     }).catch((err) => logger.warn({ err }, "Proxmox terminate failed"));
   },
+
+  async getConsoleUrl(service: ServiceContext) {
+    const cfg = await proxmoxConfig();
+    const { baseUrl, node, enabled } = resolveAuth(cfg);
+    if (!enabled || !baseUrl || !service.externalId) return null;
+    return {
+      url: `${baseUrl}/#v1:0:=qemu%2F${encodeURIComponent(node)}%2F${encodeURIComponent(String(service.externalId))}`,
+      label: "Open Proxmox console",
+    };
+  },
 };

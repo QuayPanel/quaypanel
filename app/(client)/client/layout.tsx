@@ -8,6 +8,8 @@ import {
   Server,
   Ticket,
   Handshake,
+  Wallet,
+  Coins,
 } from "lucide-react";
 import { getSessionUser } from "@/src/auth/session";
 import { BrandMark } from "@/components/brand-mark";
@@ -15,6 +17,9 @@ import { Button } from "@/components/ui/button";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { AccountMenu } from "@/components/account-menu";
 import { SiteFooter } from "@/components/site-footer";
+import { AnnouncementBanner } from "@/components/announcement-banner";
+import { LoginEventRecorder } from "@/components/login-event-recorder";
+import { ImpersonationExitButton } from "@/components/impersonation-exit-button";
 import { getSetting } from "@/src/domains/settings/service";
 
 const links = [
@@ -22,9 +27,13 @@ const links = [
   { href: "/client/services", label: "Services", icon: Server },
   { href: "/client/orders", label: "Orders", icon: ShoppingCart },
   { href: "/client/invoices", label: "Invoices", icon: FileText },
+  { href: "/client/quotes", label: "Quotes", icon: FileText },
+  { href: "/client/credits", label: "Credits", icon: Coins },
+  { href: "/client/payment-methods", label: "Payment methods", icon: Wallet },
   { href: "/client/tickets", label: "Tickets", icon: Ticket },
   { href: "/client/affiliates", label: "Affiliates", icon: Handshake },
   { href: "/client/profile", label: "Account", icon: UserRound },
+  { href: "/client/privacy", label: "Privacy", icon: UserRound },
 ];
 
 export default async function ClientLayout({
@@ -37,23 +46,26 @@ export default async function ClientLayout({
     redirect("/login");
   }
 
-  const [brandName, logoUrl, logoDisplay, affiliatesEnabled, ticketsEnabled] =
+  const [brandName, logoUrl, logoDisplay, affiliatesEnabled, ticketsEnabled, creditsEnabled] =
     await Promise.all([
       getSetting("brand.name", "QuayPanel").then(String),
       getSetting("brand.logoUrl", "").then((v) => String(v ?? "").trim()),
       getSetting("theme.logoDisplay", "logo_name").then(String),
       getSetting("affiliates.enabled", true).then(Boolean),
       getSetting("tickets.enabled", true).then(Boolean),
+      getSetting("credits.enabled", false).then(Boolean),
     ]);
 
   const navLinks = links.filter((link) => {
     if (!affiliatesEnabled && link.href === "/client/affiliates") return false;
     if (!ticketsEnabled && link.href === "/client/tickets") return false;
+    if (!creditsEnabled && link.href === "/client/credits") return false;
     return true;
   });
 
   return (
     <div className="min-h-screen md:grid md:grid-cols-[220px_1fr]">
+      <LoginEventRecorder />
       <aside className="border-r bg-card">
         <div className="flex h-16 items-center border-b px-5">
           <BrandMark
@@ -83,9 +95,18 @@ export default async function ClientLayout({
         </div>
       </aside>
       <div className="flex min-h-screen flex-col">
+        <AnnouncementBanner audience="client" />
         <header className="flex h-16 items-center justify-between border-b bg-card/70 px-6">
-          <div className="text-sm text-muted-foreground">Client area</div>
+          <div className="text-sm text-muted-foreground">
+            Client area
+            {user.impersonating ? (
+              <span className="ml-2 text-amber-600 dark:text-amber-400">
+                (impersonating)
+              </span>
+            ) : null}
+          </div>
           <div className="flex items-center gap-3">
+            {user.impersonating ? <ImpersonationExitButton /> : null}
             <ThemeToggle />
             <AccountMenu email={user.email} role={user.role} portal="client" />
           </div>

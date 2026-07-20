@@ -11,6 +11,30 @@ import { CountrySelect } from "@/components/ui/country-select";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+
+type LinkedUser = {
+  id: string;
+  email: string;
+  role: string;
+  name: string;
+};
+
+type LoginEvent = {
+  id: string;
+  ipAddress: string | null;
+  userAgent: string | null;
+  success: boolean;
+  createdAt: string;
+};
 
 type Client = {
   id: string;
@@ -25,8 +49,12 @@ type Client = {
   postalCode: string | null;
   country: string | null;
   taxId: string | null;
+  notes: string | null;
+  riskFlags: string[];
+  requireApproval: boolean;
   isAdmin: boolean;
   hasUserAccount: boolean;
+  users: LinkedUser[];
 };
 
 export default function EditClientPage({
@@ -55,11 +83,23 @@ export default function EditClientPage({
     country: "",
     taxId: "",
     isAdmin: false,
+    notes: "",
+    riskFlagsText: "",
+    requireApproval: false,
   });
   const [confirmOpen, setConfirmOpen] = useState(false);
 
+  const primaryUser = client?.users?.[0];
+
+  const { data: loginEvents = [] } = useApiQuery<LoginEvent[]>(
+    ["login-events", primaryUser?.id ?? ""],
+    `/api/v1/users/${primaryUser?.id}/login-events`,
+    { enabled: Boolean(primaryUser?.id) },
+  );
+
   useEffect(() => {
     if (!client) return;
+    const flags = Array.isArray(client.riskFlags) ? client.riskFlags : [];
     setForm({
       name: client.name,
       email: client.email,
@@ -73,12 +113,20 @@ export default function EditClientPage({
       country: client.country ?? "",
       taxId: client.taxId ?? "",
       isAdmin: client.isAdmin ?? false,
+      notes: client.notes ?? "",
+      riskFlagsText: flags.join(", "),
+      requireApproval: client.requireApproval ?? false,
     });
   }, [client]);
 
   const save = useMutation({
-    mutationFn: () =>
-      apiFetch(`/api/v1/clients/${id}`, {
+    mutationFn: async () => {
+      const riskFlags = form.riskFlagsText
+        .split(",")
+        .map((s) => s.trim())
+        .filter(Boolean);
+
+      await apiFetch(`/api/v1/clients/${id}`, {
         method: "PATCH",
         body: JSON.stringify({
           name: form.name,
@@ -94,7 +142,17 @@ export default function EditClientPage({
           taxId: form.taxId || undefined,
           isAdmin: form.isAdmin,
         }),
-      }),
+      });
+
+      await apiFetch(`/api/v1/clients/${id}/risk`, {
+        method: "PATCH",
+        body: JSON.stringify({
+          notes: form.notes || null,
+          riskFlags,
+          requireApproval: form.requireApproval,
+        }),
+      });
+    },
     onSuccess: () => {
       toast.success("Client updated");
       queryClient.invalidateQueries({ queryKey: ["clients"] });
@@ -110,6 +168,32 @@ export default function EditClientPage({
       toast.success("Client deleted");
       queryClient.invalidateQueries({ queryKey: ["clients"] });
       router.push("/admin/clients");
+    },
+    onError: (err: Error) => toast.error(err.message),
+  });
+
+  const revokeSessions = useMutation({
+    mutationFn: (userId: string) =>
+      apiFetch(`/api/v1/users/${userId}/sessions`, { method: "DELETE" }),
+    onSuccess: () => {
+      toast.success("Sessions revoked");
+      if (primaryUser?.id) {
+        queryClient.invalidateQueries({
+          queryKey: ["login-events", primaryUser.id],
+        });
+      }
+    },
+    onError: (err: Error) => toast.error(err.message),
+  });
+
+  const impersonate = useMutation({
+    mutationFn: () =>
+      apiFetch<{ redirect: string }>(`/api/v1/clients/${id}/impersonate`, {
+        method: "POST",
+      }),
+    onSuccess: (data) => {
+      toast.success("Impersonating client");
+      window.location.href = data.redirect ?? "/client";
     },
     onError: (err: Error) => toast.error(err.message),
   });
@@ -135,6 +219,16 @@ export default function EditClientPage({
       onConfirmDelete={() => remove.mutate()}
       deleting={remove.isPending}
     >
+      <div className="flex flex-wrap gap-2">
+        <Button
+          type="button"
+          variant="secondary"
+          onClick={() => impersonate.mutate()}
+          disabled={impersonate.isPending}
+        >
+          {impersonate.isPending ? "Opening..." : "Impersonate client"}
+        </Button>
+      </div>
       <Card>
         <CardHeader>
           <CardTitle>Details</CardTitle>
@@ -273,6 +367,96 @@ export default function EditClientPage({
           </p>
         </CardContent>
       </Card>
+
+      <Card className="mt-6">
+        <CardHeader>
+          <CardTitle>Risk & approval</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="space-y-2">
+            <Label>Internal notes</Label>
+            <textarea
+              className="min-h-24 w-full rounded-md border border-input bg-card px-3 py-2 text-sm"
+              value={form.notes}
+              onChange={(e) =>
+                setForm((f) => ({ ...f, notes: e.target.value }))
+              }
+            />
+          </div>
+          <div className="space-y-2">
+            <Label>Risk flags</Label>
+            <Input
+              value={form.riskFlagsText}
+              onChange={(e) =>
+                setForm((f) => ({ ...f, riskFlagsText: e.target.value }))
+              }
+              placeholder="chargeback, vpn, manual_review"
+            />
+            <p className="text-xs text-muted-foreground">
+              Comma-separated labels for staff reference.
+            </p>
+          </div>
+          <label className="flex items-center gap-2 text-sm">
+            <input
+              type="checkbox"
+              checked={form.requireApproval}
+              onChange={(e) =>
+                setForm((f) => ({ ...f, requireApproval: e.target.checked }))
+              }
+            />
+            Require manual order approval before provisioning
+          </label>
+        </CardContent>
+      </Card>
+
+      {primaryUser ? (
+        <Card className="mt-6">
+          <CardHeader className="flex flex-row items-center justify-between">
+            <CardTitle>Login activity</CardTitle>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => revokeSessions.mutate(primaryUser.id)}
+              disabled={revokeSessions.isPending}
+            >
+              Revoke sessions
+            </Button>
+          </CardHeader>
+          <CardContent>
+            <p className="mb-3 text-sm text-muted-foreground">
+              {primaryUser.name} ({primaryUser.email})
+            </p>
+            {loginEvents.length === 0 ? (
+              <p className="text-sm text-muted-foreground">No login events yet.</p>
+            ) : (
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>When</TableHead>
+                    <TableHead>IP</TableHead>
+                    <TableHead>User agent</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {loginEvents.map((event) => (
+                    <TableRow key={event.id}>
+                      <TableCell className="text-xs">
+                        {new Date(event.createdAt).toLocaleString()}
+                      </TableCell>
+                      <TableCell className="font-mono text-xs">
+                        {event.ipAddress ?? "—"}
+                      </TableCell>
+                      <TableCell className="max-w-md truncate text-xs text-muted-foreground">
+                        {event.userAgent ?? "—"}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            )}
+          </CardContent>
+        </Card>
+      ) : null}
     </EditPageChrome>
   );
 }

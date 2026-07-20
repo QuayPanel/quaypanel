@@ -54,6 +54,17 @@ export async function processProvisionJob(job: Job<ProvisionJobData>) {
     case "suspend":
       await provider.suspend(ctx);
       await updateServiceStatus(service.id, "SUSPENDED");
+      {
+        const { runAutomation } = await import(
+          "@/src/domains/automation/service"
+        );
+        await runAutomation("SERVICE_SUSPENDED", {
+          event: "service.suspended",
+          serviceId: service.id,
+          clientId: service.clientId,
+          clientEmail: service.client.email,
+        }).catch(() => undefined);
+      }
       break;
     case "unsuspend":
       await provider.unsuspend(ctx);
@@ -62,6 +73,16 @@ export async function processProvisionJob(job: Job<ProvisionJobData>) {
     case "terminate":
       await provider.terminate(ctx);
       await updateServiceStatus(service.id, "TERMINATED");
+      {
+        const { runAutomation } = await import(
+          "@/src/domains/automation/service"
+        );
+        await runAutomation("SERVICE_TERMINATED", {
+          event: "service.terminated",
+          serviceId: service.id,
+          clientId: service.clientId,
+        }).catch(() => undefined);
+      }
       break;
   }
 }

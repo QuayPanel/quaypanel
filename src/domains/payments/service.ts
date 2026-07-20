@@ -141,6 +141,7 @@ export async function createCheckoutForInvoice(
     currency: invoice.currency,
     customerEmail: invoice.client.email,
     customerName: invoice.client.name,
+    customerId: invoice.client.stripeCustomerId ?? undefined,
     successUrl: `${env.APP_URL}/client/invoices/${encodeURIComponent(invoice.number)}?paid=1`,
     cancelUrl: `${env.APP_URL}/client/invoices/${encodeURIComponent(invoice.number)}?cancelled=1`,
     metadata: {

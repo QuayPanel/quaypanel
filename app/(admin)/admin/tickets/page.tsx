@@ -51,7 +51,7 @@ export default function AdminTicketsPage() {
           <CardHeader>
             <CardTitle>Support queue</CardTitle>
           </CardHeader>
-          <CardContent>
+          <CardContent className="overflow-x-auto">
             <Table>
               <TableHeader>
                 <TableRow>
