@@ -2,10 +2,12 @@
 
 import Link from "next/link";
 import { useParams } from "next/navigation";
+import { useRef } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { PageMotion } from "@/components/motion";
 import { apiFetch, useApiQuery } from "@/components/api";
+import { CaptchaField, type CaptchaFieldHandle } from "@/components/captcha-field";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -28,17 +30,20 @@ export default function ClientInvoiceDetailPage() {
   const params = useParams<{ id: string }>();
   const id = params.id;
   const queryClient = useQueryClient();
+  const captchaRef = useRef<CaptchaFieldHandle>(null);
   const { data: invoice, isLoading } = useApiQuery<Invoice>(
     ["invoice", id],
     `/api/v1/invoices/${id}`,
   );
 
   const pay = useMutation({
-    mutationFn: (gatewayId: "stripe" | "paypal") =>
-      apiFetch<Payment>(`/api/v1/invoices/${id}/pay`, {
+    mutationFn: async (gatewayId: "stripe" | "paypal") => {
+      const captchaToken = await captchaRef.current?.execute();
+      return apiFetch<Payment>(`/api/v1/invoices/${id}/pay`, {
         method: "POST",
-        body: JSON.stringify({ gatewayId }),
-      }),
+        body: JSON.stringify({ gatewayId, captchaToken }),
+      });
+    },
     onSuccess: (payment) => {
       if (payment.checkoutUrl) {
         window.location.href = payment.checkoutUrl;
@@ -47,7 +52,10 @@ export default function ClientInvoiceDetailPage() {
       }
       queryClient.invalidateQueries({ queryKey: ["invoice", id] });
     },
-    onError: (err: Error) => toast.error(err.message),
+    onError: (err: Error) => {
+      captchaRef.current?.reset();
+      toast.error(err.message);
+    },
   });
 
   if (isLoading || !invoice) {
@@ -85,11 +93,19 @@ export default function ClientInvoiceDetailPage() {
             ))}
           </ul>
           {invoice.status === "UNPAID" && (
-            <div className="flex flex-wrap gap-3">
-              <Button onClick={() => pay.mutate("stripe")}>Pay with Stripe</Button>
-              <Button variant="outline" onClick={() => pay.mutate("paypal")}>
-                Pay with PayPal
-              </Button>
+            <div className="space-y-3">
+              <CaptchaField ref={captchaRef} />
+              <div className="flex flex-wrap gap-3">
+                <Button onClick={() => pay.mutate("stripe")}>
+                  Pay with Stripe
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={() => pay.mutate("paypal")}
+                >
+                  Pay with PayPal
+                </Button>
+              </div>
             </div>
           )}
         </CardContent>

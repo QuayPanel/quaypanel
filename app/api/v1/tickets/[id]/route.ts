@@ -12,6 +12,7 @@ import {
 } from "@/src/domains/tickets/service";
 import { ForbiddenError } from "@/src/core/errors";
 import { z } from "zod";
+import { requireCaptcha } from "@/src/core/captcha";
 
 type Params = { params: Promise<{ id: string }> };
 
@@ -41,7 +42,14 @@ export async function POST(request: Request, { params }: Params) {
     } else if (!isStaff) {
       throw new ForbiddenError();
     }
-    const body = ticketReplySchema.parse(await request.json());
+    const json = (await request.json()) as Record<string, unknown>;
+    if (asClient) {
+      await requireCaptcha(
+        typeof json.captchaToken === "string" ? json.captchaToken : undefined,
+        request,
+      );
+    }
+    const body = ticketReplySchema.parse(json);
     return jsonOk(await replyToTicket(id, ctx.userId, body.body, isStaff));
   });
 }

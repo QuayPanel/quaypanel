@@ -2,10 +2,11 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { PageMotion } from "@/components/motion";
 import { apiFetch, useApiQuery } from "@/components/api";
+import { CaptchaField, type CaptchaFieldHandle } from "@/components/captcha-field";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -32,6 +33,7 @@ function getCookie(name: string) {
 
 export default function StoreCartPage() {
   const router = useRouter();
+  const captchaRef = useRef<CaptchaFieldHandle>(null);
   const { data: me } = useApiQuery<Me>(["me"], "/api/v1/me");
   const { data: settings } = useApiQuery<PublicSettings>(
     ["public-settings"],
@@ -86,6 +88,7 @@ export default function StoreCartPage() {
 
     setOrdering(true);
     try {
+      const captchaToken = await captchaRef.current?.execute();
       const order = await apiFetch<{
         invoices: Array<{ id: string; number: string }>;
       }>("/api/v1/orders", {
@@ -95,6 +98,7 @@ export default function StoreCartPage() {
           couponCode: couponCode || undefined,
             affiliateCode: getCookie("qp_aff") || undefined,
           acceptedTerms: requiresTerms ? termsAccepted : undefined,
+          captchaToken,
           items: lines.map((line) => ({
             planId: line.planId,
             quantity: line.quantity,
@@ -112,6 +116,7 @@ export default function StoreCartPage() {
           : "/client/orders",
       );
     } catch (err) {
+      captchaRef.current?.reset();
       toast.error(err instanceof Error ? err.message : "Order failed");
     } finally {
       setOrdering(false);
@@ -232,6 +237,7 @@ export default function StoreCartPage() {
                   </span>
                 </label>
               ) : null}
+              <CaptchaField ref={captchaRef} />
               <Button
                 className="w-full"
                 disabled={ordering}

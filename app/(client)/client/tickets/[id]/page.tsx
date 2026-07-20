@@ -1,11 +1,12 @@
 "use client";
 
 import { useParams } from "next/navigation";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { PageMotion } from "@/components/motion";
 import { apiFetch, useApiQuery } from "@/components/api";
+import { CaptchaField, type CaptchaFieldHandle } from "@/components/captcha-field";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -28,6 +29,7 @@ type Ticket = {
 export default function ClientTicketDetailPage() {
   const params = useParams<{ id: string }>();
   const queryClient = useQueryClient();
+  const captchaRef = useRef<CaptchaFieldHandle>(null);
   const { data: ticket, isLoading } = useApiQuery<Ticket>(
     ["ticket", params.id],
     `/api/v1/tickets/${params.id}`,
@@ -35,16 +37,22 @@ export default function ClientTicketDetailPage() {
   const [body, setBody] = useState("");
 
   const reply = useMutation({
-    mutationFn: () =>
-      apiFetch(`/api/v1/tickets/${params.id}`, {
+    mutationFn: async () => {
+      const captchaToken = await captchaRef.current?.execute();
+      return apiFetch(`/api/v1/tickets/${params.id}`, {
         method: "POST",
-        body: JSON.stringify({ body }),
-      }),
+        body: JSON.stringify({ body, captchaToken }),
+      });
+    },
     onSuccess: () => {
       setBody("");
+      captchaRef.current?.reset();
       queryClient.invalidateQueries({ queryKey: ["ticket", params.id] });
     },
-    onError: (err: Error) => toast.error(err.message),
+    onError: (err: Error) => {
+      captchaRef.current?.reset();
+      toast.error(err.message);
+    },
   });
 
   if (isLoading || !ticket) {
@@ -81,15 +89,18 @@ export default function ClientTicketDetailPage() {
           ))}
         </CardContent>
       </Card>
-      <div className="flex gap-2">
-        <Input
-          value={body}
-          onChange={(e) => setBody(e.target.value)}
-          placeholder="Reply..."
-        />
-        <Button disabled={!body || reply.isPending} onClick={() => reply.mutate()}>
-          Send
-        </Button>
+      <div className="space-y-3">
+        <div className="flex gap-2">
+          <Input
+            value={body}
+            onChange={(e) => setBody(e.target.value)}
+            placeholder="Reply..."
+          />
+          <Button disabled={!body || reply.isPending} onClick={() => reply.mutate()}>
+            Send
+          </Button>
+        </div>
+        <CaptchaField ref={captchaRef} />
       </div>
     </PageMotion>
   );

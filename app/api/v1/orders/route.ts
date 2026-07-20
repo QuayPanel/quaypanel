@@ -11,6 +11,8 @@ import {
 } from "@/src/domains/orders/service";
 import { ForbiddenError } from "@/src/core/errors";
 
+import { requireCaptcha } from "@/src/core/captcha";
+
 export async function GET(request: Request) {
   return withApi(request, async ({ auth }) => {
     const ctx = requireAuth(auth);
@@ -26,16 +28,28 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   return withApi(request, async ({ auth }) => {
     const ctx = requireAuth(auth);
-    const body = orderCreateSchema.parse(await request.json());
+    const json = (await request.json()) as Record<string, unknown>;
 
     if (useOwnClientScope(ctx, request)) {
+      await requireCaptcha(
+        typeof json.captchaToken === "string" ? json.captchaToken : undefined,
+        request,
+      );
+      const body = orderCreateSchema.parse(json);
       if (!ctx.clientId || body.clientId !== ctx.clientId) {
         throw new ForbiddenError("Cannot create orders for another client");
       }
-    } else {
-      requireStaff(auth);
+      const ip =
+        request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
+        request.headers.get("x-real-ip") ||
+        null;
+      return jsonOk(await createOrder(body, ctx.userId, { ip }), {
+        status: 201,
+      });
     }
 
+    requireStaff(auth);
+    const body = orderCreateSchema.parse(json);
     const ip =
       request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
       request.headers.get("x-real-ip") ||

@@ -9,6 +9,7 @@ import { headers } from "next/headers";
 import { getSetting } from "@/src/domains/settings/service";
 import { ValidationError } from "@/src/core/errors";
 import { acceptTermsForClient, getTermsPage } from "@/src/domains/legal/service";
+import { requireCaptcha } from "@/src/core/captcha";
 
 const registerSchema = z
   .object({
@@ -26,11 +27,18 @@ const registerSchema = z
     postalCode: z.string().min(1),
     country: z.string().min(1),
     acceptedTerms: z.boolean().optional(),
+    captchaToken: z.string().optional(),
   })
   .refine((data) => data.password === data.confirmPassword, {
     message: "Passwords do not match",
     path: ["confirmPassword"],
   });
+
+const loginSchema = z.object({
+  email: z.string().email(),
+  password: z.string().min(1),
+  captchaToken: z.string().optional(),
+});
 
 export async function registerClientAction(
   input: z.infer<typeof registerSchema>,
@@ -40,6 +48,7 @@ export async function registerClientAction(
   }
 
   const data = registerSchema.parse(input);
+  await requireCaptcha(data.captchaToken);
 
   const terms = await getTermsPage().catch(() => null);
   if (terms?.published) {
@@ -98,5 +107,29 @@ export async function registerClientAction(
     payload: { name },
   }).catch(() => undefined);
 
+  // Establish session without a second captcha (token is single-use).
+  await auth.api.signInEmail({
+    body: {
+      email: data.email,
+      password: data.password,
+    },
+    headers: await headers(),
+  });
+
   return { ok: true };
+}
+
+export async function loginClientAction(input: z.infer<typeof loginSchema>) {
+  const data = loginSchema.parse(input);
+  await requireCaptcha(data.captchaToken);
+
+  const result = await auth.api.signInEmail({
+    body: {
+      email: data.email,
+      password: data.password,
+    },
+    headers: await headers(),
+  });
+
+  return { ok: true, user: result.user };
 }

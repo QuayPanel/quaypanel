@@ -1,11 +1,12 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { PageMotion } from "@/components/motion";
 import { apiFetch, useApiQuery } from "@/components/api";
+import { CaptchaField, type CaptchaFieldHandle } from "@/components/captcha-field";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -33,6 +34,7 @@ type Me = { clientId: string | null };
 
 export default function ClientTicketsPage() {
   const queryClient = useQueryClient();
+  const captchaRef = useRef<CaptchaFieldHandle>(null);
   const { data: me } = useApiQuery<Me>(["me"], "/api/v1/me");
   const { data = [], isLoading } = useApiQuery<Ticket[]>(
     ["client-tickets"],
@@ -42,8 +44,9 @@ export default function ClientTicketsPage() {
   const [body, setBody] = useState("");
 
   const create = useMutation({
-    mutationFn: () => {
+    mutationFn: async () => {
       if (!me?.clientId) throw new Error("Missing client");
+      const captchaToken = await captchaRef.current?.execute();
       return apiFetch("/api/v1/tickets", {
         method: "POST",
         body: JSON.stringify({
@@ -51,6 +54,7 @@ export default function ClientTicketsPage() {
           subject,
           body,
           priority: "MEDIUM",
+          captchaToken,
         }),
       });
     },
@@ -58,9 +62,13 @@ export default function ClientTicketsPage() {
       toast.success("Ticket created");
       setSubject("");
       setBody("");
+      captchaRef.current?.reset();
       queryClient.invalidateQueries({ queryKey: ["client-tickets"] });
     },
-    onError: (err: Error) => toast.error(err.message),
+    onError: (err: Error) => {
+      captchaRef.current?.reset();
+      toast.error(err.message);
+    },
   });
 
   return (
@@ -80,6 +88,7 @@ export default function ClientTicketsPage() {
               <Label>Message</Label>
               <Input value={body} onChange={(e) => setBody(e.target.value)} />
             </div>
+            <CaptchaField ref={captchaRef} />
             <Button onClick={() => create.mutate()}>Open ticket</Button>
           </CardContent>
         </Card>

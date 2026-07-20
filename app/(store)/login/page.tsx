@@ -2,10 +2,12 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { toast } from "sonner";
+import { loginClientAction } from "@/src/actions/auth";
 import { authClient } from "@/src/auth/client";
 import { useApiQuery } from "@/components/api";
+import { CaptchaField, type CaptchaFieldHandle } from "@/components/captcha-field";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -13,6 +15,7 @@ import { PageMotion } from "@/components/motion";
 
 export default function LoginPage() {
   const router = useRouter();
+  const captchaRef = useRef<CaptchaFieldHandle>(null);
   const { data: settings } = useApiQuery<Record<string, unknown>>(
     ["public-settings"],
     "/api/v1/settings?public=1",
@@ -29,15 +32,17 @@ export default function LoginPage() {
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
     setLoading(true);
-    const { error } = await authClient.signIn.email({ email, password });
-    setLoading(false);
-    if (error) {
-      toast.error(error.message ?? "Login failed");
-      return;
+    try {
+      const captchaToken = await captchaRef.current?.execute();
+      await loginClientAction({ email, password, captchaToken });
+      router.push("/client");
+      router.refresh();
+    } catch (err) {
+      captchaRef.current?.reset();
+      toast.error(err instanceof Error ? err.message : "Login failed");
+    } finally {
+      setLoading(false);
     }
-
-    await fetch("/api/v1/me").then((r) => r.json());
-    router.push("/client");
   }
 
   async function social(provider: "google" | "github" | "discord") {
@@ -83,6 +88,8 @@ export default function LoginPage() {
             required
           />
         </div>
+
+        <CaptchaField ref={captchaRef} />
 
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <Button type="submit" disabled={loading} className="sm:min-w-48">

@@ -1,10 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { PageMotion } from "@/components/motion";
 import { apiFetch, useApiQuery } from "@/components/api";
+import { CaptchaField, type CaptchaFieldHandle } from "@/components/captcha-field";
 import { PageHeader } from "@/components/admin/page-header";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -34,6 +35,7 @@ type CreditPayload = {
 
 export default function ClientCreditsPage() {
   const queryClient = useQueryClient();
+  const captchaRef = useRef<CaptchaFieldHandle>(null);
   const { data, isLoading } = useApiQuery<CreditPayload>(
     ["credits"],
     "/api/v1/credits",
@@ -41,11 +43,17 @@ export default function ClientCreditsPage() {
   const [amount, setAmount] = useState("25");
 
   const deposit = useMutation({
-    mutationFn: () =>
-      apiFetch<{ checkoutUrl: string | null }>("/api/v1/credits", {
+    mutationFn: async () => {
+      const captchaToken = await captchaRef.current?.execute();
+      return apiFetch<{ checkoutUrl: string | null }>("/api/v1/credits", {
         method: "POST",
-        body: JSON.stringify({ amount: Number(amount), gatewayId: "stripe" }),
-      }),
+        body: JSON.stringify({
+          amount: Number(amount),
+          gatewayId: "stripe",
+          captchaToken,
+        }),
+      });
+    },
     onSuccess: (result) => {
       if (result.checkoutUrl) {
         window.location.href = result.checkoutUrl;
@@ -54,7 +62,10 @@ export default function ClientCreditsPage() {
       }
       queryClient.invalidateQueries({ queryKey: ["credits"] });
     },
-    onError: (err: Error) => toast.error(err.message),
+    onError: (err: Error) => {
+      captchaRef.current?.reset();
+      toast.error(err.message);
+    },
   });
 
   if (isLoading || !data) {
@@ -95,6 +106,7 @@ export default function ClientCreditsPage() {
                 onChange={(e) => setAmount(e.target.value)}
               />
             </div>
+            <CaptchaField ref={captchaRef} />
             <Button
               onClick={() => deposit.mutate()}
               disabled={deposit.isPending || Number(amount) <= 0}

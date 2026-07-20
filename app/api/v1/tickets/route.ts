@@ -11,6 +11,7 @@ import {
 } from "@/src/domains/tickets/service";
 import { ForbiddenError } from "@/src/core/errors";
 import { getSetting } from "@/src/domains/settings/service";
+import { requireCaptcha } from "@/src/core/captcha";
 
 async function assertTicketsEnabled() {
   const enabled = Boolean(await getSetting("tickets.enabled", true));
@@ -34,16 +35,24 @@ export async function POST(request: Request) {
   return withApi(request, async ({ auth }) => {
     await assertTicketsEnabled();
     const ctx = requireAuth(auth);
-    const body = ticketCreateSchema.parse(await request.json());
+    const json = (await request.json()) as Record<string, unknown>;
     let isStaff = false;
     if (useOwnClientScope(ctx, request)) {
+      await requireCaptcha(
+        typeof json.captchaToken === "string" ? json.captchaToken : undefined,
+        request,
+      );
+      const body = ticketCreateSchema.parse(json);
       if (!ctx.clientId || body.clientId !== ctx.clientId) {
         throw new ForbiddenError();
       }
-    } else {
-      requireStaff(auth);
-      isStaff = true;
+      return jsonOk(await createTicket(body, ctx.userId, { isStaff }), {
+        status: 201,
+      });
     }
+    requireStaff(auth);
+    isStaff = true;
+    const body = ticketCreateSchema.parse(json);
     return jsonOk(await createTicket(body, ctx.userId, { isStaff }), {
       status: 201,
     });

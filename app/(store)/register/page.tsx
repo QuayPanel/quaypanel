@@ -2,11 +2,11 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { registerClientAction } from "@/src/actions/auth";
-import { authClient } from "@/src/auth/client";
 import { useApiQuery } from "@/components/api";
+import { CaptchaField, type CaptchaFieldHandle } from "@/components/captcha-field";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -15,6 +15,7 @@ import { CountrySelect } from "@/components/ui/country-select";
 
 export default function RegisterPage() {
   const router = useRouter();
+  const captchaRef = useRef<CaptchaFieldHandle>(null);
   const { data: settings } = useApiQuery<Record<string, unknown>>(
     ["public-settings"],
     "/api/v1/settings?public=1",
@@ -69,6 +70,7 @@ export default function RegisterPage() {
 
     setLoading(true);
     try {
+      const captchaToken = await captchaRef.current?.execute();
       await registerClientAction({
         firstName,
         lastName,
@@ -84,11 +86,12 @@ export default function RegisterPage() {
         postalCode,
         country,
         acceptedTerms: requiresTerms ? acceptedTerms : undefined,
+        captchaToken,
       });
-      const { error } = await authClient.signIn.email({ email, password });
-      if (error) throw new Error(error.message);
       router.push("/client");
+      router.refresh();
     } catch (err) {
+      captchaRef.current?.reset();
       toast.error(err instanceof Error ? err.message : "Registration failed");
     } finally {
       setLoading(false);
@@ -316,6 +319,8 @@ export default function RegisterPage() {
             </span>
           </label>
         ) : null}
+
+        <CaptchaField ref={captchaRef} />
 
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <Button type="submit" disabled={loading} className="sm:min-w-48">

@@ -15,6 +15,7 @@ export default function ClientInvoicePdfPage({
       backHref={`/client/invoices/${encodeURIComponent(id)}`}
       backLabel="Back to invoice"
       showPay
+      requireCaptcha
     />
   );
 }

@@ -14,10 +14,12 @@ import {
 import { ForbiddenError } from "@/src/core/errors";
 import { minorToDollars } from "@/src/core/utils";
 import { z } from "zod";
+import { requireCaptcha } from "@/src/core/captcha";
 
 const clientDepositSchema = z.object({
   amount: z.number().positive(),
   gatewayId: z.enum(["stripe", "paypal"]).optional(),
+  captchaToken: z.string().optional(),
 });
 
 function creditBalancePayload(balanceMinor: number, ledger: unknown) {
@@ -56,6 +58,7 @@ export async function POST(request: Request) {
     if (useOwnClientScope(ctx, request)) {
       if (!ctx.clientId) throw new ForbiddenError();
       const body = clientDepositSchema.parse(await request.json());
+      await requireCaptcha(body.captchaToken, request);
       const result = await createCreditDepositCheckout(
         ctx.clientId,
         body.amount,
