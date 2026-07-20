@@ -19,6 +19,20 @@ export const affiliateUpdateCodeSchema = z.object({
   code: z.string().min(3).max(32),
 });
 
+export const affiliateAdminUpdateSchema = z.object({
+  code: z.string().min(3).max(32).optional(),
+  balanceMinor: z.number().int().min(0).optional(),
+  commissionPercent: z.number().int().min(0).max(100).optional(),
+  status: z.enum(["ACTIVE", "DISABLED"]).optional(),
+});
+
+export const affiliateReferralCreateSchema = z.object({
+  /** Client id, email, or client number. */
+  referredClient: z.string().min(1).optional().nullable(),
+  commissionMinor: z.number().int().min(0),
+  status: z.enum(["PENDING", "APPROVED", "PAID"]).default("PENDING"),
+});
+
 const AFFILIATE_CODE_RE = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 
 export function normalizeAffiliateCode(raw: string) {
@@ -124,6 +138,211 @@ export async function getAffiliateByClientId(clientId: string) {
       referrals: { orderBy: { createdAt: "desc" } },
     },
   });
+}
+
+async function resolveReferredClient(ref?: string | null) {
+  if (!ref?.trim()) return null;
+  const raw = ref.trim();
+  const byId = await prisma.client.findUnique({ where: { id: raw } });
+  if (byId) return byId;
+  const byEmail = await prisma.client.findUnique({
+    where: { email: raw.toLowerCase() },
+  });
+  if (byEmail) return byEmail;
+  const num = Number(raw);
+  if (Number.isInteger(num) && num > 0) {
+    const byNumber = await prisma.client.findUnique({ where: { number: num } });
+    if (byNumber) return byNumber;
+  }
+  throw new NotFoundError("Referred client not found");
+}
+
+export async function getAffiliate(id: string) {
+  const affiliate = await prisma.affiliate.findUnique({
+    where: { id },
+    include: {
+      client: true,
+      referrals: { orderBy: { createdAt: "desc" } },
+    },
+  });
+  if (!affiliate) throw new NotFoundError("Affiliate not found");
+
+  const referredIds = [
+    ...new Set(
+      affiliate.referrals
+        .map((r) => r.referredClientId)
+        .filter((cid): cid is string => Boolean(cid)),
+    ),
+  ];
+  const clients =
+    referredIds.length > 0
+      ? await prisma.client.findMany({
+          where: { id: { in: referredIds } },
+          select: { id: true, name: true, email: true, number: true },
+        })
+      : [];
+  const byId = Object.fromEntries(clients.map((c) => [c.id, c]));
+
+  return {
+    ...affiliate,
+    referrals: affiliate.referrals.map((r) => ({
+      ...r,
+      referredClient: r.referredClientId
+        ? (byId[r.referredClientId] ?? null)
+        : null,
+    })),
+  };
+}
+
+export async function updateAffiliate(
+  id: string,
+  data: z.infer<typeof affiliateAdminUpdateSchema>,
+  actorId?: string,
+) {
+  const parsed = affiliateAdminUpdateSchema.parse(data);
+  const affiliate = await prisma.affiliate.findUnique({ where: { id } });
+  if (!affiliate) throw new NotFoundError("Affiliate not found");
+
+  const update: {
+    code?: string;
+    balanceMinor?: number;
+    commissionPercent?: number;
+    status?: "ACTIVE" | "DISABLED";
+  } = {};
+
+  if (parsed.code !== undefined) {
+    const code = normalizeAffiliateCode(parsed.code);
+    assertValidAffiliateCode(code);
+    if (code !== affiliate.code) {
+      const taken = await prisma.affiliate.findUnique({ where: { code } });
+      if (taken) throw new ConflictError("Affiliate code already taken");
+      update.code = code;
+    }
+  }
+  if (parsed.balanceMinor !== undefined) {
+    update.balanceMinor = parsed.balanceMinor;
+  }
+  if (parsed.commissionPercent !== undefined) {
+    update.commissionPercent = parsed.commissionPercent;
+  }
+  if (parsed.status !== undefined) {
+    update.status = parsed.status;
+  }
+
+  if (Object.keys(update).length === 0) return getAffiliate(id);
+
+  await prisma.affiliate.update({ where: { id }, data: update });
+  await writeAuditLog({
+    actorId,
+    action: "affiliate.update",
+    entityType: "affiliate",
+    entityId: id,
+    metadata: update,
+  });
+  return getAffiliate(id);
+}
+
+export async function deleteAffiliate(id: string, actorId?: string) {
+  const affiliate = await prisma.affiliate.findUnique({ where: { id } });
+  if (!affiliate) throw new NotFoundError("Affiliate not found");
+
+  await prisma.affiliate.delete({ where: { id } });
+  await writeAuditLog({
+    actorId,
+    action: "affiliate.delete",
+    entityType: "affiliate",
+    entityId: id,
+    metadata: { code: affiliate.code, clientId: affiliate.clientId },
+  });
+  return { ok: true };
+}
+
+export async function createAffiliateReferral(
+  affiliateId: string,
+  data: z.infer<typeof affiliateReferralCreateSchema>,
+  actorId?: string,
+) {
+  const parsed = affiliateReferralCreateSchema.parse(data);
+  const affiliate = await prisma.affiliate.findUnique({
+    where: { id: affiliateId },
+  });
+  if (!affiliate) throw new NotFoundError("Affiliate not found");
+
+  const referred = await resolveReferredClient(parsed.referredClient);
+  if (referred && referred.id === affiliate.clientId) {
+    throw new ValidationError("Cannot refer the affiliate's own account");
+  }
+
+  const referral = await prisma.$transaction(async (tx) => {
+    const created = await tx.affiliateReferral.create({
+      data: {
+        affiliateId,
+        referredClientId: referred?.id ?? null,
+        commissionMinor: parsed.commissionMinor,
+        status: parsed.status,
+      },
+    });
+    // Unpaid commissions sit in the affiliate balance.
+    if (parsed.status !== "PAID" && parsed.commissionMinor > 0) {
+      await tx.affiliate.update({
+        where: { id: affiliateId },
+        data: { balanceMinor: { increment: parsed.commissionMinor } },
+      });
+    }
+    return created;
+  });
+
+  await writeAuditLog({
+    actorId,
+    action: "affiliate.referral_create",
+    entityType: "affiliate_referral",
+    entityId: referral.id,
+    metadata: {
+      affiliateId,
+      commissionMinor: parsed.commissionMinor,
+      status: parsed.status,
+    },
+  });
+  return referral;
+}
+
+export async function deleteAffiliateReferral(id: string, actorId?: string) {
+  const referral = await prisma.affiliateReferral.findUnique({ where: { id } });
+  if (!referral) throw new NotFoundError("Referral not found");
+
+  await prisma.$transaction(async (tx) => {
+    await tx.affiliateReferral.delete({ where: { id } });
+    // PENDING/APPROVED commissions are still in balance — remove them.
+    if (referral.status !== "PAID" && referral.commissionMinor > 0) {
+      const affiliate = await tx.affiliate.findUnique({
+        where: { id: referral.affiliateId },
+      });
+      if (affiliate) {
+        await tx.affiliate.update({
+          where: { id: referral.affiliateId },
+          data: {
+            balanceMinor: Math.max(
+              0,
+              affiliate.balanceMinor - referral.commissionMinor,
+            ),
+          },
+        });
+      }
+    }
+  });
+
+  await writeAuditLog({
+    actorId,
+    action: "affiliate.referral_delete",
+    entityType: "affiliate_referral",
+    entityId: id,
+    metadata: {
+      affiliateId: referral.affiliateId,
+      status: referral.status,
+      commissionMinor: referral.commissionMinor,
+    },
+  });
+  return { ok: true };
 }
 
 export async function getAffiliateByCode(code: string) {

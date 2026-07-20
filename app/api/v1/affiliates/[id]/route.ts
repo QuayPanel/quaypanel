@@ -1,21 +1,28 @@
 import { withApi, jsonOk } from "@/src/core/api";
 import { requireStaff } from "@/src/auth/session";
 import {
-  deleteAffiliateReferral,
-  updateReferralStatus,
+  affiliateAdminUpdateSchema,
+  deleteAffiliate,
+  getAffiliate,
+  updateAffiliate,
 } from "@/src/domains/affiliates/service";
-import { z } from "zod";
 
 type Params = { params: Promise<{ id: string }> };
+
+export async function GET(request: Request, { params }: Params) {
+  return withApi(request, async ({ auth }) => {
+    requireStaff(auth);
+    const { id } = await params;
+    return jsonOk(await getAffiliate(id));
+  });
+}
 
 export async function PATCH(request: Request, { params }: Params) {
   return withApi(request, async ({ auth }) => {
     const ctx = requireStaff(auth);
     const { id } = await params;
-    const body = z
-      .object({ status: z.enum(["PENDING", "APPROVED", "PAID"]) })
-      .parse(await request.json());
-    return jsonOk(await updateReferralStatus(id, body.status, ctx.userId));
+    const body = affiliateAdminUpdateSchema.parse(await request.json());
+    return jsonOk(await updateAffiliate(id, body, ctx.userId));
   });
 }
 
@@ -23,6 +30,6 @@ export async function DELETE(request: Request, { params }: Params) {
   return withApi(request, async ({ auth }) => {
     const ctx = requireStaff(auth);
     const { id } = await params;
-    return jsonOk(await deleteAffiliateReferral(id, ctx.userId));
+    return jsonOk(await deleteAffiliate(id, ctx.userId));
   });
 }

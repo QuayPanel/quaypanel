@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -127,6 +128,7 @@ export default function AdminAffiliatesPage() {
                       <TableHead>Code</TableHead>
                       <TableHead>Balance</TableHead>
                       <TableHead>Referrals</TableHead>
+                      <TableHead />
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -178,6 +180,18 @@ export default function AdminAffiliatesPage() {
                               )}
                             </div>
                           ))}
+                          {aff.referrals.length > 3 ? (
+                            <div className="text-xs text-muted-foreground">
+                              +{aff.referrals.length - 3} more
+                            </div>
+                          ) : null}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <Button size="sm" variant="outline" asChild>
+                            <Link href={`/admin/affiliates/${aff.id}/edit`}>
+                              Edit
+                            </Link>
+                          </Button>
                         </TableCell>
                       </TableRow>
                     ))}
