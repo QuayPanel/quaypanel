@@ -22,6 +22,9 @@ export function EditPageChrome({
   onConfirmDelete,
   onCancelDelete,
   deleting,
+  showDuplicate,
+  onDuplicate,
+  duplicating,
 }: {
   title: string;
   description?: string;
@@ -39,6 +42,9 @@ export function EditPageChrome({
   onConfirmDelete?: () => void;
   onCancelDelete?: () => void;
   deleting?: boolean;
+  showDuplicate?: boolean;
+  onDuplicate?: () => void;
+  duplicating?: boolean;
 }) {
   return (
     <PageMotion>
@@ -56,11 +62,22 @@ export function EditPageChrome({
             </Link>
           </p>
         </div>
-        {showDelete && onDelete && (
-          <Button variant="destructive" onClick={onDelete}>
-            Delete
-          </Button>
-        )}
+        <div className="flex flex-wrap items-center gap-2">
+          {showDuplicate && onDuplicate ? (
+            <Button
+              variant="outline"
+              onClick={onDuplicate}
+              disabled={duplicating || saving}
+            >
+              {duplicating ? "Duplicating..." : "Duplicate"}
+            </Button>
+          ) : null}
+          {showDelete && onDelete ? (
+            <Button variant="destructive" onClick={onDelete}>
+              Delete
+            </Button>
+          ) : null}
+        </div>
       </div>
 
       <div className="space-y-6">{children}</div>

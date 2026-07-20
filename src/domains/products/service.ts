@@ -378,6 +378,105 @@ export async function saveProduct(
   return product;
 }
 
+async function uniqueProductSlug(base: string) {
+  let slug = base || "product";
+  let n = 0;
+  while (true) {
+    const taken = await prisma.product.findUnique({ where: { slug } });
+    if (!taken) return slug;
+    n += 1;
+    slug = `${base}-${n}`;
+  }
+}
+
+export async function duplicateProduct(
+  idOrNumber: string | number,
+  actorId?: string,
+) {
+  const source = await getProduct(idOrNumber);
+  const name = `Copy of ${source.name}`;
+  const slug = await uniqueProductSlug(slugify(name));
+
+  const product = await prisma.$transaction(async (tx) => {
+    const created = await tx.product.create({
+      data: {
+        name,
+        description: source.description,
+        slug,
+        active: source.active,
+        hidden: source.hidden,
+        stock: source.stock,
+        perUserLimit: source.perUserLimit,
+        allowQuantity: source.allowQuantity,
+        categoryId: source.categoryId,
+        imageUrl: source.imageUrl,
+        featured: source.featured,
+        sortOrder: source.sortOrder,
+        provisionProvider: source.provisionProvider,
+        provisionConfig: (source.provisionConfig ?? {}) as object,
+      },
+    });
+
+    for (const plan of source.plans) {
+      await tx.productPlan.create({
+        data: {
+          productId: created.id,
+          name: plan.name,
+          description: plan.description,
+          price: plan.price,
+          priceFormula: plan.priceFormula,
+          currency: plan.currency,
+          type: plan.type,
+          intervalCount: plan.intervalCount,
+          billingPeriod: plan.billingPeriod,
+          interval: plan.interval,
+          setupFee: plan.setupFee,
+          active: plan.active,
+        },
+      });
+    }
+
+    if (source.upgrades.length > 0) {
+      await tx.productUpgrade.createMany({
+        data: source.upgrades
+          .filter((u) => u.targetProductId !== source.id)
+          .map((u) => ({
+            productId: created.id,
+            targetProductId: u.targetProductId,
+          })),
+      });
+    }
+
+    const configLinks = await tx.configOptionProduct.findMany({
+      where: { productId: source.id },
+    });
+    if (configLinks.length > 0) {
+      await tx.configOptionProduct.createMany({
+        data: configLinks.map((link) => ({
+          productId: created.id,
+          configOptionId: link.configOptionId,
+        })),
+      });
+    }
+
+    return tx.product.findUniqueOrThrow({
+      where: { id: created.id },
+      include: productDetailInclude,
+    });
+  });
+
+  await cacheDel(CATALOG_CACHE);
+  await cacheDel(`${CATALOG_CACHE}:active`);
+  await writeAuditLog({
+    actorId,
+    action: "product.duplicate",
+    entityType: "product",
+    entityId: product.id,
+    metadata: { sourceId: source.id, number: product.number },
+  });
+  return product;
+}
+
 export async function deleteProducts(
   idsOrNumbers: Array<string | number>,
   actorId?: string,

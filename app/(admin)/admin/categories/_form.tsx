@@ -148,6 +148,20 @@ export function CategoryFormPage({ mode, categoryNumber }: CategoryFormProps) {
     onError: (err: Error) => toast.error(err.message),
   });
 
+  const duplicate = useMutation({
+    mutationFn: () =>
+      apiFetch<{ number: number }>(
+        `/api/v1/categories/${categoryNumber}/duplicate`,
+        { method: "POST" },
+      ),
+    onSuccess: (result) => {
+      toast.success("Category duplicated");
+      queryClient.invalidateQueries({ queryKey: ["admin-categories"] });
+      router.push(`/admin/categories/${result.number}/edit`);
+    },
+    onError: (err: Error) => toast.error(err.message),
+  });
+
   if (mode === "edit" && isLoading) {
     return <p className="text-muted-foreground">Loading...</p>;
   }
@@ -177,6 +191,9 @@ export function CategoryFormPage({ mode, categoryNumber }: CategoryFormProps) {
         save.mutate();
       }}
       saving={save.isPending}
+      showDuplicate={mode === "edit"}
+      onDuplicate={() => duplicate.mutate()}
+      duplicating={duplicate.isPending}
       showDelete={mode === "edit"}
       onDelete={() => setConfirmOpen(true)}
       confirmOpen={confirmOpen}

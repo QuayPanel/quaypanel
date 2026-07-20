@@ -318,6 +318,20 @@ export function ProductFormPage({ mode, productNumber }: ProductFormProps) {
     onError: (err: Error) => toast.error(err.message),
   });
 
+  const duplicate = useMutation({
+    mutationFn: () =>
+      apiFetch<{ number: number }>(
+        `/api/v1/products/${productNumber}/duplicate`,
+        { method: "POST" },
+      ),
+    onSuccess: (result) => {
+      toast.success("Product duplicated");
+      queryClient.invalidateQueries({ queryKey: ["products"] });
+      router.push(`/admin/products/${result.number}/edit`);
+    },
+    onError: (err: Error) => toast.error(err.message),
+  });
+
   if (mode === "edit" && isLoading) {
     return <p className="text-muted-foreground">Loading...</p>;
   }
@@ -359,6 +373,9 @@ export function ProductFormPage({ mode, productNumber }: ProductFormProps) {
         save.mutate();
       }}
       saving={save.isPending}
+      showDuplicate={mode === "edit"}
+      onDuplicate={() => duplicate.mutate()}
+      duplicating={duplicate.isPending}
       showDelete={mode === "edit"}
       onDelete={() => setConfirmOpen(true)}
       confirmOpen={confirmOpen}

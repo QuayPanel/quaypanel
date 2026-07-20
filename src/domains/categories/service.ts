@@ -267,6 +267,53 @@ export async function updateCategory(
   return category;
 }
 
+async function uniqueCategorySlug(base: string) {
+  let slug = base || "category";
+  let n = 0;
+  while (true) {
+    const taken = await prisma.category.findUnique({ where: { slug } });
+    if (!taken) return slug;
+    n += 1;
+    slug = `${base}-${n}`;
+  }
+}
+
+export async function duplicateCategory(
+  idOrNumber: string | number,
+  actorId?: string,
+) {
+  const source = await getCategory(idOrNumber);
+  const name = `Copy of ${source.name}`;
+  const slug = await uniqueCategorySlug(slugify(name));
+
+  const category = await prisma.category.create({
+    data: {
+      name,
+      slug,
+      description: source.description,
+      imageUrl: source.imageUrl,
+      sortOrder: source.sortOrder,
+      active: source.active,
+      parentId: source.parentId,
+    },
+    include: {
+      parent: { select: parentSelect },
+      _count: { select: { children: true } },
+    },
+  });
+
+  await cacheDel(CATALOG_CACHE);
+  await cacheDel(`${CATALOG_CACHE}:active`);
+  await writeAuditLog({
+    actorId,
+    action: "category.duplicate",
+    entityType: "category",
+    entityId: category.id,
+    metadata: { sourceId: source.id, number: category.number },
+  });
+  return category;
+}
+
 export async function deleteCategories(
   idsOrNumbers: Array<string | number>,
   actorId?: string,
