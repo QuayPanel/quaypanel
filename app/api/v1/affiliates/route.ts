@@ -6,11 +6,13 @@ import {
 } from "@/src/auth/session";
 import {
   affiliateEnrollSchema,
+  affiliateUpdateCodeSchema,
   enrollAffiliate,
   getAffiliateByClientId,
   listAffiliates,
+  updateAffiliateCode,
 } from "@/src/domains/affiliates/service";
-import { ForbiddenError } from "@/src/core/errors";
+import { ForbiddenError, ValidationError } from "@/src/core/errors";
 
 export async function GET(request: Request) {
   return withApi(request, async ({ auth }) => {
@@ -36,5 +38,28 @@ export async function POST(request: Request) {
       requireStaff(auth);
     }
     return jsonOk(await enrollAffiliate(body, ctx.userId), { status: 201 });
+  });
+}
+
+export async function PATCH(request: Request) {
+  return withApi(request, async ({ auth }) => {
+    const ctx = requireAuth(auth);
+    const body = affiliateUpdateCodeSchema.parse(await request.json());
+    const url = new URL(request.url);
+    const staffClientId = url.searchParams.get("clientId");
+
+    let clientId: string;
+    if (useOwnClientScope(ctx, request)) {
+      if (!ctx.clientId) throw new ForbiddenError();
+      clientId = ctx.clientId;
+    } else {
+      requireStaff(auth);
+      if (!staffClientId) {
+        throw new ValidationError("clientId is required for staff updates");
+      }
+      clientId = staffClientId;
+    }
+
+    return jsonOk(await updateAffiliateCode(clientId, body.code, ctx.userId));
   });
 }

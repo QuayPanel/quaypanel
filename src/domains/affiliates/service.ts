@@ -34,11 +34,8 @@ export function assertValidAffiliateCode(code: string) {
       "Code may only use lowercase letters, numbers, and hyphens",
     );
   }
-  if (code.startsWith("aff-") === false && code.includes("--")) {
-    throw new ValidationError("Code cannot contain consecutive hyphens");
-  }
-  if (code.startsWith("-") || code.endsWith("-")) {
-    throw new ValidationError("Code cannot start or end with a hyphen");
+  if (code.includes("--") || code.startsWith("-") || code.endsWith("-")) {
+    throw new ValidationError("Code cannot start/end with or repeat hyphens");
   }
 }
 

@@ -35,6 +35,7 @@ type Payout = {
 export default function ClientAffiliatesPage() {
   const queryClient = useQueryClient();
   const [payoutAmount, setPayoutAmount] = useState("");
+  const [customCode, setCustomCode] = useState("");
   const { data: settings } = useApiQuery<Record<string, unknown>>(
     ["public-settings"],
     "/api/v1/settings?public=1",
@@ -60,6 +61,20 @@ export default function ClientAffiliatesPage() {
     },
     onSuccess: () => {
       toast.success("Enrolled as affiliate");
+      queryClient.invalidateQueries({ queryKey: ["client-affiliate"] });
+    },
+    onError: (err: Error) => toast.error(err.message),
+  });
+
+  const updateCode = useMutation({
+    mutationFn: () =>
+      apiFetch("/api/v1/affiliates", {
+        method: "PATCH",
+        body: JSON.stringify({ code: customCode.trim() }),
+      }),
+    onSuccess: () => {
+      toast.success("Affiliate code updated");
+      setCustomCode("");
       queryClient.invalidateQueries({ queryKey: ["client-affiliate"] });
     },
     onError: (err: Error) => toast.error(err.message),
@@ -126,9 +141,43 @@ export default function ClientAffiliatesPage() {
             <CardContent className="space-y-2 text-sm">
               <p className="font-mono break-all">{link}</p>
               <p>
+                Code: <span className="font-mono">{affiliate.code}</span> ·
                 Commission: {affiliate.commissionPercent}% · Balance:{" "}
                 {formatMoney(affiliate.balanceMinor)}
               </p>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Custom affiliate code</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <p className="text-sm text-muted-foreground">
+                Use 3–32 characters: lowercase letters, numbers, and hyphens.
+                Changing your code updates your link; old links stop working.
+              </p>
+              <div className="flex flex-wrap items-end gap-3">
+                <div className="space-y-2">
+                  <Label htmlFor="affiliate-code">New code</Label>
+                  <Input
+                    id="affiliate-code"
+                    value={customCode}
+                    onChange={(e) => setCustomCode(e.target.value)}
+                    placeholder={affiliate.code}
+                    className="w-56 font-mono"
+                    maxLength={32}
+                  />
+                </div>
+                <Button
+                  disabled={
+                    updateCode.isPending || customCode.trim().length < 3
+                  }
+                  onClick={() => updateCode.mutate()}
+                >
+                  {updateCode.isPending ? "Saving…" : "Save code"}
+                </Button>
+              </div>
             </CardContent>
           </Card>
 
