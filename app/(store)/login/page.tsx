@@ -54,94 +54,96 @@ export default function LoginPage() {
 
   return (
     <PageMotion>
-      <h1 className="text-3xl font-semibold tracking-tight">
-        Sign in to {brand}
-      </h1>
-      <p className="mt-2 text-muted-foreground">
-        Access your admin or client portal.
-      </p>
+      <div className="mx-auto w-full max-w-md">
+        <h1 className="text-3xl font-semibold tracking-tight">
+          Sign in to {brand}
+        </h1>
+        <p className="mt-2 text-muted-foreground">
+          Access your admin or client portal.
+        </p>
 
-      <form className="mt-8 space-y-6" onSubmit={onSubmit}>
-        <div className="space-y-2">
-          <Label htmlFor="email" required>
-            Email
-          </Label>
-          <Input
-            id="email"
-            type="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            autoComplete="email"
-            required
-          />
-        </div>
-        <div className="space-y-2">
-          <Label htmlFor="password" required>
-            Password
-          </Label>
-          <Input
-            id="password"
-            type="password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            autoComplete="current-password"
-            required
-          />
-        </div>
+        <form className="mt-8 space-y-6" onSubmit={onSubmit}>
+          <div className="space-y-2">
+            <Label htmlFor="email" required>
+              Email
+            </Label>
+            <Input
+              id="email"
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              autoComplete="email"
+              required
+            />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="password" required>
+              Password
+            </Label>
+            <Input
+              id="password"
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              autoComplete="current-password"
+              required
+            />
+          </div>
 
-        <CaptchaField ref={captchaRef} />
+          <CaptchaField ref={captchaRef} />
 
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-          <Button type="submit" disabled={loading} className="sm:min-w-48">
-            {loading ? "Signing in..." : "Sign in"}
-          </Button>
-          {!registrationDisabled ? (
-            <p className="text-sm text-muted-foreground">
-              New here?{" "}
-              <Link className="text-primary underline" href="/register">
-                Create an account
-              </Link>
-            </p>
-          ) : null}
-        </div>
-      </form>
-
-      {(Boolean(settings?.["oauth.google.enabled"]) ||
-        Boolean(settings?.["oauth.github.enabled"]) ||
-        Boolean(settings?.["oauth.discord.enabled"])) && (
-        <div className="mt-8 space-y-2 border-t pt-8">
-          {Boolean(settings?.["oauth.google.enabled"]) && (
-            <Button
-              type="button"
-              variant="outline"
-              className="w-full sm:max-w-xs"
-              onClick={() => social("google")}
-            >
-              Continue with Google
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <Button type="submit" disabled={loading} className="sm:min-w-48">
+              {loading ? "Signing in..." : "Sign in"}
             </Button>
-          )}
-          {Boolean(settings?.["oauth.github.enabled"]) && (
-            <Button
-              type="button"
-              variant="outline"
-              className="w-full sm:max-w-xs"
-              onClick={() => social("github")}
-            >
-              Continue with GitHub
-            </Button>
-          )}
-          {Boolean(settings?.["oauth.discord.enabled"]) && (
-            <Button
-              type="button"
-              variant="outline"
-              className="w-full sm:max-w-xs"
-              onClick={() => social("discord")}
-            >
-              Continue with Discord
-            </Button>
-          )}
-        </div>
-      )}
+            {!registrationDisabled ? (
+              <p className="text-sm text-muted-foreground">
+                New here?{" "}
+                <Link className="text-primary underline" href="/register">
+                  Create an account
+                </Link>
+              </p>
+            ) : null}
+          </div>
+        </form>
+
+        {(Boolean(settings?.["oauth.google.enabled"]) ||
+          Boolean(settings?.["oauth.github.enabled"]) ||
+          Boolean(settings?.["oauth.discord.enabled"])) && (
+          <div className="mt-8 space-y-2 border-t pt-8">
+            {Boolean(settings?.["oauth.google.enabled"]) && (
+              <Button
+                type="button"
+                variant="outline"
+                className="w-full"
+                onClick={() => social("google")}
+              >
+                Continue with Google
+              </Button>
+            )}
+            {Boolean(settings?.["oauth.github.enabled"]) && (
+              <Button
+                type="button"
+                variant="outline"
+                className="w-full"
+                onClick={() => social("github")}
+              >
+                Continue with GitHub
+              </Button>
+            )}
+            {Boolean(settings?.["oauth.discord.enabled"]) && (
+              <Button
+                type="button"
+                variant="outline"
+                className="w-full"
+                onClick={() => social("discord")}
+              >
+                Continue with Discord
+              </Button>
+            )}
+          </div>
+        )}
+      </div>
     </PageMotion>
   );
 }
