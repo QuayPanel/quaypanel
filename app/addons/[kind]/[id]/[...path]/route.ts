@@ -1,4 +1,7 @@
+import { readFile, stat } from "fs/promises";
+import path from "path";
 import type { AddonKind } from "@/src/addons/paths";
+import { resolveDiscoveredAddonPath } from "@/src/addons/scan";
 
 type Params = { params: Promise<{ kind: string; id: string; path: string[] }> };
 
@@ -28,14 +31,6 @@ export async function GET(_request: Request, { params }: Params) {
   if (!relative || relative.includes("..")) {
     return new Response("Not found", { status: 404 });
   }
-
-  const { resolveDiscoveredAddonPath } = await import(
-    /* webpackIgnore: true */
-    /* turbopackIgnore: true */
-    "@/src/addons/scan"
-  );
-  const path = await import("path");
-  const { readFile, stat } = await import("fs/promises");
 
   const base = await resolveDiscoveredAddonPath(addonKind, id);
   if (!base) return new Response("Not found", { status: 404 });

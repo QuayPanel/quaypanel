@@ -96,12 +96,8 @@ export async function loadBuiltInGateways() {
   }
 
   try {
-    const mod = await import(
-      /* webpackIgnore: true */
-      /* turbopackIgnore: true */
-      "@/src/addons/plugin-loader"
-    );
-    await mod.reloadEnabledPlugins();
+    const { reloadEnabledPlugins } = await import("@/src/addons/plugin-loader");
+    await reloadEnabledPlugins();
   } catch {
     /* addons optional during early boot */
   }

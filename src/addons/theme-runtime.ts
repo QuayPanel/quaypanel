@@ -91,8 +91,6 @@ export async function reloadActiveTheme() {
   loadedThemeId = null;
 
   const { readThemeManifest, resolveDiscoveredAddonPath } = await import(
-    /* webpackIgnore: true */
-    /* turbopackIgnore: true */
     "@/src/addons/scan"
   );
 
