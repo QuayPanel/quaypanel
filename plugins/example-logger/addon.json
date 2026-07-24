@@ -1,0 +1,10 @@
+{
+  "id": "example-logger",
+  "name": "Example Logger Plugin",
+  "version": "0.1.0",
+  "type": "plugin",
+  "description": "Sample plugin that logs addon hooks. Copy and replace register() to add gateways or providers.",
+  "entry": "dist/index.js",
+  "provides": [],
+  "hooks": ["order.paid", "invoice.created", "client.register", "service.provision"]
+}

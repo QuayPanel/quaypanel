@@ -49,6 +49,16 @@ export async function processProvisionJob(job: Job<ProvisionJobData>) {
         externalId: result?.externalId,
         hostname: result?.hostname,
       });
+      {
+        const { runAddonHooks } = await import("@/src/addons/theme-runtime");
+        await runAddonHooks("service.provision", {
+          serviceId: service.id,
+          orderId: job.data.orderId,
+          providerId,
+          clientId: service.clientId,
+          externalId: result?.externalId,
+        }).catch(() => undefined);
+      }
       break;
     }
     case "suspend":

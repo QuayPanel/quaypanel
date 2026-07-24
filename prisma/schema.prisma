@@ -684,6 +684,23 @@ model PluginInstall {
   @@map("plugin_install")
 }
 
+model AddonInstall {
+  id             String   @id @default(cuid())
+  kind           String
+  addonId        String
+  enabled        Boolean  @default(false)
+  config         Json     @default("{}")
+  version        String?
+  discoveredPath String?
+  loadError      String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@unique([kind, addonId])
+  @@index([kind, enabled])
+  @@map("addon_install")
+}
+
 model WebhookEvent {
   id          String   @id @default(cuid())
   gatewayId   String

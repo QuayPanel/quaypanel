@@ -90,6 +90,12 @@ export async function createClient(
     entityId: client.id,
     metadata: { email: client.email, number: client.number },
   });
+  const { runAddonHooks } = await import("@/src/addons/theme-runtime");
+  await runAddonHooks("client.register", {
+    clientId: client.id,
+    email: client.email,
+    name: client.name,
+  }).catch(() => undefined);
   return client;
 }
 

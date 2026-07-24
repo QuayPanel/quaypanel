@@ -8,8 +8,13 @@ import { processInvoicePaidJob } from "../src/jobs/invoices";
 import { processProvisionJob } from "../src/jobs/provision";
 import { processDailyCron, processRenewalsSweep } from "../src/jobs/renewals";
 import { rescheduleCronJobs } from "../src/domains/cron-stats/reschedule";
+import { loadBuiltInGateways } from "../src/plugins/registry";
 
 const connection = getRedisConnectionOptions();
+
+loadBuiltInGateways().catch((err) =>
+  logger.error({ err }, "Failed to load payment gateways / plugins"),
+);
 
 const emailWorker = new Worker(QUEUE_NAMES.email, processEmailJob, {
   connection,

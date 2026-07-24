@@ -104,7 +104,7 @@ export async function depositCredits(
 export async function createCreditDepositCheckout(
   clientId: string,
   amountDollars: number,
-  gatewayId: "stripe" | "paypal" = "stripe",
+  gatewayId: string = "stripe",
   actorId?: string,
 ) {
   const enabled = Boolean(await getSetting("credits.enabled", false));

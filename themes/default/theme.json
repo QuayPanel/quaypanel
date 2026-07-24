@@ -1,0 +1,32 @@
+{
+  "id": "default",
+  "name": "QuayPanel Default",
+  "version": "0.1.0",
+  "type": "theme",
+  "description": "Built-in QuayPanel look and feel. Fork this package to start a custom theme.",
+  "tokens": {
+    "light": {
+      "primary": "#1d4ed8",
+      "secondary": "#64748b",
+      "border": "#e2e8f0",
+      "accent": "#0ea5e9",
+      "text": "#0f172a",
+      "muted": "#64748b",
+      "inverted": "#ffffff",
+      "bg": "#ffffff",
+      "bgSecondary": "#f8fafc"
+    },
+    "dark": {
+      "primary": "#3b82f6",
+      "secondary": "#94a3b8",
+      "border": "#334155",
+      "accent": "#38bdf8",
+      "text": "#f8fafc",
+      "muted": "#94a3b8",
+      "inverted": "#0f172a",
+      "bg": "#0f172a",
+      "bgSecondary": "#1e293b"
+    }
+  },
+  "overrides": []
+}

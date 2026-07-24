@@ -45,3 +45,14 @@ next-env.d.ts
 
 # uploaded catalog images
 /public/uploads
+
+# user-installed addons (keep shipped default + sample packages)
+/plugins/*
+!/plugins/.gitkeep
+!/plugins/example-logger/
+!/plugins/example-logger/**
+/themes/*
+!/themes/default/
+!/themes/default/**
+!/themes/midnight/
+!/themes/midnight/**

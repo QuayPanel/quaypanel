@@ -181,6 +181,14 @@ export async function createInvoiceFromOrder(orderId: string, actorId?: string) 
     entityId: invoice.id,
   });
 
+  const { runAddonHooks } = await import("@/src/addons/theme-runtime");
+  await runAddonHooks("invoice.created", {
+    invoiceId: invoice.id,
+    orderId: order.id,
+    clientId: invoice.clientId,
+    total: invoice.total,
+  }).catch(() => undefined);
+
   return invoice;
 }
 
@@ -253,6 +261,17 @@ export async function markInvoicePaid(input: {
     invoiceId: updated.id,
     paymentId: input.paymentId,
   }).catch(() => undefined);
+
+  const { runAddonHooks } = await import("@/src/addons/theme-runtime");
+  if (updated.orderId) {
+    await runAddonHooks("order.paid", {
+      orderId: updated.orderId,
+      invoiceId: updated.id,
+      paymentId: input.paymentId,
+      clientId: updated.clientId,
+      total: updated.total,
+    }).catch(() => undefined);
+  }
 
   return updated;
 }
@@ -403,6 +422,13 @@ export async function createCustomInvoice(input: {
       total: formatMoney(invoice.total, invoice.currency),
       currency: invoice.currency,
     },
+  }).catch(() => undefined);
+
+  const { runAddonHooks } = await import("@/src/addons/theme-runtime");
+  await runAddonHooks("invoice.created", {
+    invoiceId: invoice.id,
+    clientId: invoice.clientId,
+    total: invoice.total,
   }).catch(() => undefined);
 
   return invoice;

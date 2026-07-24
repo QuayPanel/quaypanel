@@ -1,0 +1,35 @@
+{
+  "id": "midnight",
+  "name": "Midnight",
+  "version": "0.1.0",
+  "type": "theme",
+  "description": "Sample colors-only theme. Fork themes/default or copy this for a quick recolor.",
+  "tokens": {
+    "light": {
+      "primary": "#4c1d95",
+      "secondary": "#6b7280",
+      "border": "#e5e7eb",
+      "accent": "#7c3aed",
+      "text": "#111827",
+      "muted": "#6b7280",
+      "inverted": "#ffffff",
+      "bg": "#faf5ff",
+      "bgSecondary": "#f3e8ff"
+    },
+    "dark": {
+      "primary": "#a78bfa",
+      "secondary": "#9ca3af",
+      "border": "#374151",
+      "accent": "#c4b5fd",
+      "text": "#f9fafb",
+      "muted": "#9ca3af",
+      "inverted": "#111827",
+      "bg": "#0b0614",
+      "bgSecondary": "#1a1025"
+    }
+  },
+  "assets": {
+    "css": ["assets/theme.css"]
+  },
+  "overrides": []
+}

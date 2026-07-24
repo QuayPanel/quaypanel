@@ -41,15 +41,18 @@ export default function ClientCreditsPage() {
     "/api/v1/credits",
   );
   const [amount, setAmount] = useState("25");
+  const { data: gateways = [] } = useApiQuery<
+    Array<{ id: string; name: string }>
+  >(["enabled-payment-gateways"], "/api/v1/payments/gateways");
 
   const deposit = useMutation({
-    mutationFn: async () => {
+    mutationFn: async (gatewayId: string) => {
       const captchaToken = await captchaRef.current?.execute();
       return apiFetch<{ checkoutUrl: string | null }>("/api/v1/credits", {
         method: "POST",
         body: JSON.stringify({
           amount: Number(amount),
-          gatewayId: "stripe",
+          gatewayId,
           captchaToken,
         }),
       });
@@ -107,12 +110,25 @@ export default function ClientCreditsPage() {
               />
             </div>
             <CaptchaField ref={captchaRef} />
-            <Button
-              onClick={() => deposit.mutate()}
-              disabled={deposit.isPending || Number(amount) <= 0}
-            >
-              {deposit.isPending ? "Redirecting..." : "Pay with Stripe"}
-            </Button>
+            <div className="flex flex-wrap gap-2">
+              {gateways.length === 0 ? (
+                <p className="text-sm text-muted-foreground">
+                  No payment gateways enabled.
+                </p>
+              ) : (
+                gateways.map((gateway) => (
+                  <Button
+                    key={gateway.id}
+                    onClick={() => deposit.mutate(gateway.id)}
+                    disabled={deposit.isPending || Number(amount) <= 0}
+                  >
+                    {deposit.isPending
+                      ? "Redirecting..."
+                      : `Pay with ${gateway.name}`}
+                  </Button>
+                ))
+              )}
+            </div>
           </CardContent>
         </Card>
       </div>

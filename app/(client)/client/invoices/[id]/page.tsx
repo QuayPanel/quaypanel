@@ -8,6 +8,7 @@ import { toast } from "sonner";
 import { PageMotion } from "@/components/motion";
 import { apiFetch, useApiQuery } from "@/components/api";
 import { CaptchaField, type CaptchaFieldHandle } from "@/components/captcha-field";
+import { PaymentGatewayButtons } from "@/components/payment-gateway-buttons";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -37,7 +38,7 @@ export default function ClientInvoiceDetailPage() {
   );
 
   const pay = useMutation({
-    mutationFn: async (gatewayId: "stripe" | "paypal") => {
+    mutationFn: async (gatewayId: string) => {
       const captchaToken = await captchaRef.current?.execute();
       return apiFetch<Payment>(`/api/v1/invoices/${id}/pay`, {
         method: "POST",
@@ -95,17 +96,10 @@ export default function ClientInvoiceDetailPage() {
           {invoice.status === "UNPAID" && (
             <div className="space-y-3">
               <CaptchaField ref={captchaRef} />
-              <div className="flex flex-wrap gap-3">
-                <Button onClick={() => pay.mutate("stripe")}>
-                  Pay with Stripe
-                </Button>
-                <Button
-                  variant="outline"
-                  onClick={() => pay.mutate("paypal")}
-                >
-                  Pay with PayPal
-                </Button>
-              </div>
+              <PaymentGatewayButtons
+                onPay={(gatewayId) => pay.mutate(gatewayId)}
+                disabled={pay.isPending}
+              />
             </div>
           )}
         </CardContent>

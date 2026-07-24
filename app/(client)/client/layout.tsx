@@ -1,4 +1,3 @@
-import Link from "next/link";
 import { redirect } from "next/navigation";
 import {
   LayoutDashboard,
@@ -12,15 +11,18 @@ import {
   Coins,
 } from "lucide-react";
 import { getSessionUser } from "@/src/auth/session";
-import { BrandMark } from "@/components/brand-mark";
-import { Button } from "@/components/ui/button";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { AccountMenu } from "@/components/account-menu";
 import { SiteFooter } from "@/components/site-footer";
 import { AnnouncementBanner } from "@/components/announcement-banner";
 import { LoginEventRecorder } from "@/components/login-event-recorder";
 import { ImpersonationExitButton } from "@/components/impersonation-exit-button";
+import { ClientSidebar } from "@/components/shells/client-sidebar";
 import { getSetting } from "@/src/domains/settings/service";
+import {
+  ensureThemeLoaded,
+  getThemeView,
+} from "@/src/addons/theme-runtime";
 
 const links = [
   { href: "/client", label: "Dashboard", icon: LayoutDashboard },
@@ -63,37 +65,19 @@ export default async function ClientLayout({
     return true;
   });
 
+  await ensureThemeLoaded().catch(() => undefined);
+  const SidebarOverride = getThemeView("shell.client.sidebar");
+  const FooterOverride = getThemeView("shell.footer");
+  const brand = { name: brandName, logoUrl, logoDisplay };
+
   return (
     <div className="min-h-screen md:grid md:grid-cols-[220px_1fr]">
       <LoginEventRecorder />
-      <aside className="border-r bg-card">
-        <div className="flex h-16 items-center border-b px-5">
-          <BrandMark
-            name={brandName}
-            logoUrl={logoUrl}
-            logoDisplay={logoDisplay}
-            href="/client"
-            size="sm"
-          />
-        </div>
-        <nav className="flex flex-col gap-1 p-3">
-          {navLinks.map((link) => (
-            <Link
-              key={link.href}
-              href={link.href}
-              className="flex items-center gap-2 rounded-md px-3 py-2 text-sm text-muted-foreground hover:bg-muted hover:text-foreground"
-            >
-              <link.icon className="h-4 w-4" />
-              {link.label}
-            </Link>
-          ))}
-        </nav>
-        <div className="space-y-2 p-3">
-          <Button asChild variant="secondary" className="w-full">
-            <Link href="/store">Browse store</Link>
-          </Button>
-        </div>
-      </aside>
+      {SidebarOverride ? (
+        <SidebarOverride brand={brand} links={navLinks} />
+      ) : (
+        <ClientSidebar brand={brand} links={navLinks} />
+      )}
       <div className="flex min-h-screen flex-col">
         <AnnouncementBanner audience="client" />
         <header className="flex h-16 items-center justify-between border-b bg-card/70 px-6">
@@ -112,7 +96,7 @@ export default async function ClientLayout({
           </div>
         </header>
         <main className="flex-1 p-6">{children}</main>
-        <SiteFooter />
+        {FooterOverride ? <FooterOverride /> : <SiteFooter />}
       </div>
     </div>
   );

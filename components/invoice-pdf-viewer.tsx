@@ -7,6 +7,7 @@ import { toast } from "sonner";
 import { PageMotion } from "@/components/motion";
 import { apiFetch, useApiQuery } from "@/components/api";
 import { CaptchaField, type CaptchaFieldHandle } from "@/components/captcha-field";
+import { PaymentGatewayButtons } from "@/components/payment-gateway-buttons";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { formatMoney } from "@/src/core/utils";
@@ -48,7 +49,7 @@ export function InvoicePdfViewer({
   const downloadSrc = `${pdfSrc}?download=1`;
 
   const pay = useMutation({
-    mutationFn: async (gatewayId: "stripe" | "paypal") => {
+    mutationFn: async (gatewayId: string) => {
       const captchaToken = requireCaptcha
         ? await captchaRef.current?.execute()
         : undefined;
@@ -102,22 +103,11 @@ export function InvoicePdfViewer({
 
       {showPay && unpaid ? (
         <div className="mb-4 space-y-3 rounded-lg border bg-card p-4">
-          <div className="flex flex-wrap items-center gap-3">
-            <p className="mr-auto text-sm font-medium">Pay this invoice</p>
-            <Button
-              onClick={() => pay.mutate("stripe")}
-              disabled={pay.isPending}
-            >
-              Pay with Stripe
-            </Button>
-            <Button
-              variant="outline"
-              onClick={() => pay.mutate("paypal")}
-              disabled={pay.isPending}
-            >
-              Pay with PayPal
-            </Button>
-          </div>
+          <p className="text-sm font-medium">Pay this invoice</p>
+          <PaymentGatewayButtons
+            onPay={(gatewayId) => pay.mutate(gatewayId)}
+            disabled={pay.isPending}
+          />
           {requireCaptcha ? <CaptchaField ref={captchaRef} /> : null}
         </div>
       ) : null}
@@ -132,19 +122,10 @@ export function InvoicePdfViewer({
 
       {showPay && unpaid ? (
         <div className="mt-4 flex flex-wrap items-center justify-end gap-3">
-          <Button
-            onClick={() => pay.mutate("stripe")}
+          <PaymentGatewayButtons
+            onPay={(gatewayId) => pay.mutate(gatewayId)}
             disabled={pay.isPending}
-          >
-            Pay with Stripe
-          </Button>
-          <Button
-            variant="outline"
-            onClick={() => pay.mutate("paypal")}
-            disabled={pay.isPending}
-          >
-            Pay with PayPal
-          </Button>
+          />
         </div>
       ) : null}
     </PageMotion>

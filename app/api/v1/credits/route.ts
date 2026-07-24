@@ -18,7 +18,7 @@ import { requireCaptcha } from "@/src/core/captcha";
 
 const clientDepositSchema = z.object({
   amount: z.number().positive(),
-  gatewayId: z.enum(["stripe", "paypal"]).optional(),
+  gatewayId: z.string().min(1).optional(),
   captchaToken: z.string().optional(),
 });
 

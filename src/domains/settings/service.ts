@@ -89,10 +89,11 @@ export const settingsDefaults: Record<string, unknown> = {
   "credits.onDowngrade": true,
 
   "theme.id": "default",
+  "theme.activeId": "default",
   "theme.packages": [
     {
       id: "default",
-      name: "Default",
+      name: "QuayPanel Default",
       description: "Built-in QuayPanel theme",
     },
   ],
@@ -230,6 +231,7 @@ export const settingsUpdateSchema = z
     "credits.onDowngrade": optionalBool,
 
     "theme.id": z.string().optional(),
+    "theme.activeId": z.string().optional(),
     "theme.packages": z
       .array(
         z.object({
@@ -328,6 +330,7 @@ export const PUBLIC_SETTING_KEYS = [
   "credits.maxDeposit",
   "affiliates.enabled",
   "theme.id",
+  "theme.activeId",
   "theme.packages",
   "theme.directCheckout",
   "theme.smallImages",

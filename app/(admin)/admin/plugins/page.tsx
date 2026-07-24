@@ -1,51 +1,68 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { PageMotion } from "@/components/motion";
 import { apiFetch, useApiQuery } from "@/components/api";
 import { PageHeader } from "@/components/admin/page-header";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 
-type SettingsMap = Record<string, unknown>;
-
-type PluginEntry = {
-  id: string;
+type Addon = {
+  kind: "plugin" | "theme";
+  addonId: string;
   name: string;
-  version?: string;
+  version: string;
+  description?: string;
+  path: string;
   enabled: boolean;
-  source?: string;
+  active?: boolean;
+  loadError: string | null;
+  discoveryError?: string;
+  provides?: string[];
+  overrides?: string[];
 };
 
 export default function AdminPluginsPage() {
   const queryClient = useQueryClient();
-  const { data, isLoading } = useApiQuery<SettingsMap>(
-    ["settings"],
-    "/api/v1/settings",
+  const { data = [], isLoading } = useApiQuery<Addon[]>(
+    ["addons-plugins"],
+    "/api/v1/addons?kind=plugin",
   );
-  const [plugins, setPlugins] = useState<PluginEntry[]>([]);
-  const [packageName, setPackageName] = useState("");
 
-  useEffect(() => {
-    if (!data) return;
-    const raw = data["plugins.installed"];
-    if (Array.isArray(raw)) setPlugins(raw as PluginEntry[]);
-  }, [data]);
-
-  const save = useMutation({
-    mutationFn: () =>
-      apiFetch("/api/v1/settings", {
+  const toggle = useMutation({
+    mutationFn: ({
+      addonId,
+      enabled,
+    }: {
+      addonId: string;
+      enabled: boolean;
+    }) =>
+      apiFetch("/api/v1/addons", {
         method: "PATCH",
-        body: JSON.stringify({ "plugins.installed": plugins }),
+        body: JSON.stringify({
+          action: "enable_plugin",
+          addonId,
+          enabled,
+        }),
       }),
     onSuccess: () => {
-      toast.success("Plugins updated");
-      queryClient.invalidateQueries({ queryKey: ["settings"] });
+      toast.success("Plugin updated");
+      queryClient.invalidateQueries({ queryKey: ["addons-plugins"] });
+    },
+    onError: (err: Error) => toast.error(err.message),
+  });
+
+  const reload = useMutation({
+    mutationFn: () =>
+      apiFetch("/api/v1/addons", {
+        method: "PATCH",
+        body: JSON.stringify({ action: "reload" }),
+      }),
+    onSuccess: () => {
+      toast.success("Addons reloaded");
+      queryClient.invalidateQueries({ queryKey: ["addons-plugins"] });
     },
     onError: (err: Error) => toast.error(err.message),
   });
@@ -54,123 +71,83 @@ export default function AdminPluginsPage() {
     <PageMotion>
       <PageHeader
         title="Plugins"
-        description="Payment and provisioning plugin packages."
+        description="Extract zip addons into /plugins, then enable them here. Restart the app/worker after installing new packages if reload is not enough."
+        actions={
+          <Button
+            variant="outline"
+            onClick={() => reload.mutate()}
+            disabled={reload.isPending}
+          >
+            {reload.isPending ? "Reloading..." : "Reload addons"}
+          </Button>
+        }
       />
 
       {isLoading ? (
         <p className="text-muted-foreground">Loading...</p>
       ) : (
-        <div className="space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle>Installed</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              {plugins.length === 0 ? (
-                <p className="text-sm text-muted-foreground">
-                  No external plugins registered. Built-in gateways and
-                  provisioning providers ship with the core.
-                </p>
-              ) : (
-                plugins.map((plugin) => (
-                  <div
-                    key={plugin.id}
-                    className="flex flex-wrap items-center justify-between gap-3 rounded-md border px-3 py-2"
-                  >
-                    <div>
+        <Card>
+          <CardHeader>
+            <CardTitle>Discovered plugins</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {data.length === 0 ? (
+              <p className="text-sm text-muted-foreground">
+                No plugins found under <code className="font-mono">/plugins</code>.
+                Built-in Stripe, PayPal, Pterodactyl, and Proxmox still load from
+                core. Drop a folder with <code className="font-mono">addon.json</code>{" "}
+                and <code className="font-mono">dist/index.js</code> to install an
+                external plugin.
+              </p>
+            ) : (
+              data.map((plugin) => (
+                <div
+                  key={plugin.addonId}
+                  className="flex flex-wrap items-start justify-between gap-3 rounded-md border px-3 py-3"
+                >
+                  <div className="min-w-0 space-y-1">
+                    <div className="flex flex-wrap items-center gap-2">
                       <p className="font-medium">{plugin.name}</p>
-                      <p className="text-sm text-muted-foreground">
-                        {plugin.source || plugin.id}
-                        {plugin.version ? ` @ ${plugin.version}` : ""}
-                      </p>
-                    </div>
-                    <div className="flex items-center gap-2">
                       <Badge>
                         {plugin.enabled ? "Enabled" : "Disabled"}
                       </Badge>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() =>
-                          setPlugins((prev) =>
-                            prev.map((p) =>
-                              p.id === plugin.id
-                                ? { ...p, enabled: !p.enabled }
-                                : p,
-                            ),
-                          )
-                        }
-                      >
-                        Toggle
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        onClick={() =>
-                          setPlugins((prev) =>
-                            prev.filter((p) => p.id !== plugin.id),
-                          )
-                        }
-                      >
-                        Uninstall
-                      </Button>
+                      <span className="text-xs text-muted-foreground">
+                        v{plugin.version}
+                      </span>
                     </div>
+                    <p className="text-sm text-muted-foreground">
+                      {plugin.addonId}
+                      {plugin.description ? ` — ${plugin.description}` : ""}
+                    </p>
+                    {plugin.provides && plugin.provides.length > 0 ? (
+                      <p className="text-xs text-muted-foreground">
+                        Provides: {plugin.provides.join(", ")}
+                      </p>
+                    ) : null}
+                    {(plugin.loadError || plugin.discoveryError) && (
+                      <p className="text-xs text-destructive">
+                        {plugin.loadError || plugin.discoveryError}
+                      </p>
+                    )}
                   </div>
-                ))
-              )}
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle>Install from package</CardTitle>
-            </CardHeader>
-            <CardContent className="max-w-lg space-y-3">
-              <Label>npm / package name</Label>
-              <Input
-                value={packageName}
-                onChange={(e) => setPackageName(e.target.value)}
-                placeholder="@quaypanel/plugin-example"
-              />
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => {
-                  const source = packageName.trim();
-                  if (!source) {
-                    toast.error("Package name required");
-                    return;
-                  }
-                  const id = source.replace(/[^a-zA-Z0-9@/_-]/g, "");
-                  if (plugins.some((p) => p.id === id || p.source === source)) {
-                    toast.error("Already installed");
-                    return;
-                  }
-                  setPlugins((prev) => [
-                    ...prev,
-                    {
-                      id,
-                      name: source.split("/").pop() || source,
-                      source,
-                      version: "pending",
-                      enabled: true,
-                    },
-                  ]);
-                  setPackageName("");
-                  toast.message(
-                    "Registered for install — restart worker after deploying the package",
-                  );
-                }}
-              >
-                Register plugin
-              </Button>
-            </CardContent>
-          </Card>
-
-          <Button onClick={() => save.mutate()} disabled={save.isPending}>
-            {save.isPending ? "Saving..." : "Save plugins"}
-          </Button>
-        </div>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    disabled={toggle.isPending || Boolean(plugin.discoveryError)}
+                    onClick={() =>
+                      toggle.mutate({
+                        addonId: plugin.addonId,
+                        enabled: !plugin.enabled,
+                      })
+                    }
+                  >
+                    {plugin.enabled ? "Disable" : "Enable"}
+                  </Button>
+                </div>
+              ))
+            )}
+          </CardContent>
+        </Card>
       )}
     </PageMotion>
   );

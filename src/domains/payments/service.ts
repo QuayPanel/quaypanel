@@ -16,7 +16,7 @@ import { writeAuditLog } from "@/src/domains/audit/service";
 import { creditOnRefund } from "@/src/domains/credits/service";
 
 export const payInvoiceSchema = z.object({
-  gatewayId: z.enum(["stripe", "paypal"]),
+  gatewayId: z.string().min(1),
 });
 
 export async function listPayments(invoiceId?: string) {
