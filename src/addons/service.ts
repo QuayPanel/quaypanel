@@ -1,5 +1,6 @@
 import { prisma } from "@/src/db/client";
 import { getSetting, updateSettings } from "@/src/domains/settings/service";
+import { DEFAULT_THEME_COLORS } from "@/src/domains/settings/defaults";
 import {
   scanPlugins,
   scanThemes,
@@ -195,6 +196,16 @@ export async function activateTheme(addonId: string, actorId?: string) {
   await updateSettings({
     "theme.activeId": addonId,
     "theme.id": addonId,
+    // Seed Settings color pickers from the theme so activation is visible.
+    // Users can still tweak colors afterward as overrides.
+    "theme.colors.light": {
+      ...DEFAULT_THEME_COLORS.light,
+      ...(found.manifest.tokens?.light ?? {}),
+    },
+    "theme.colors.dark": {
+      ...DEFAULT_THEME_COLORS.dark,
+      ...(found.manifest.tokens?.dark ?? {}),
+    },
   });
 
   await writeAuditLog({

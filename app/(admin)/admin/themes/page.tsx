@@ -1,5 +1,6 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { PageMotion } from "@/components/motion";
@@ -25,6 +26,7 @@ type Addon = {
 };
 
 export default function AdminThemesPage() {
+  const router = useRouter();
   const queryClient = useQueryClient();
   const { data = [], isLoading } = useApiQuery<Addon[]>(
     ["addons-themes"],
@@ -42,6 +44,7 @@ export default function AdminThemesPage() {
       queryClient.invalidateQueries({ queryKey: ["addons-themes"] });
       queryClient.invalidateQueries({ queryKey: ["settings"] });
       queryClient.invalidateQueries({ queryKey: ["public-settings"] });
+      router.refresh();
     },
     onError: (err: Error) => toast.error(err.message),
   });
@@ -55,6 +58,7 @@ export default function AdminThemesPage() {
     onSuccess: () => {
       toast.success("Addons reloaded");
       queryClient.invalidateQueries({ queryKey: ["addons-themes"] });
+      router.refresh();
     },
     onError: (err: Error) => toast.error(err.message),
   });
@@ -63,7 +67,7 @@ export default function AdminThemesPage() {
     <PageMotion>
       <PageHeader
         title="Themes"
-        description="Extract theme zips into /themes. Only one theme is active. Fork themes/default to start a custom theme. Color overrides in Settings still apply on top of theme tokens."
+        description="Extract theme zips into /themes. Only one theme is active. Activating a theme applies its colors; fine-tune them afterward in Settings → Theme."
         actions={
           <Button
             variant="outline"

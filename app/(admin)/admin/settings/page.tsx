@@ -937,28 +937,22 @@ export default function AdminSettingsPage() {
               <CardTitle>Theme</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
+              <div className="rounded-md border bg-muted/40 px-3 py-3 text-sm">
+                <p>
+                  Active package:{" "}
+                  <code className="font-mono">
+                    {str(form["theme.activeId"] ?? form["theme.id"], "default")}
+                  </code>
+                </p>
+                <p className="mt-1 text-muted-foreground">
+                  Switch themes under{" "}
+                  <a href="/admin/themes" className="underline">
+                    Admin → Themes
+                  </a>
+                  . Colors below override the active theme.
+                </p>
+              </div>
               <div className="grid gap-4 md:grid-cols-2">
-                <div className="space-y-2">
-                  <Label>Theme</Label>
-                  <select
-                    className="flex h-10 w-full rounded-md border border-input bg-card px-3 text-sm"
-                    value={str(form["theme.id"], "default")}
-                    onChange={(e) => set("theme.id", e.target.value)}
-                  >
-                    {(
-                      Array.isArray(form["theme.packages"])
-                        ? (form["theme.packages"] as Array<{
-                            id: string;
-                            name: string;
-                          }>)
-                        : [{ id: "default", name: "Default" }]
-                    ).map((pkg) => (
-                      <option key={pkg.id} value={pkg.id}>
-                        {pkg.name}
-                      </option>
-                    ))}
-                  </select>
-                </div>
                 <div className="space-y-2">
                   <Label>Logo display</Label>
                   <select

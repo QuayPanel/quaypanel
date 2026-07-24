@@ -69,13 +69,23 @@ async function exists(filePath: string) {
 let loadPromise: Promise<void> | null = null;
 
 export async function ensureThemeLoaded() {
-  if (loadedThemeId) return;
+  const themeId = String(
+    (await getSetting("theme.activeId", "default")) || "default",
+  );
+  if (loadedThemeId === themeId) return;
   if (!loadPromise) {
     loadPromise = reloadActiveTheme().finally(() => {
       loadPromise = null;
     });
   }
   await loadPromise;
+  // Another request may have switched themes while we were loading.
+  const latest = String(
+    (await getSetting("theme.activeId", "default")) || "default",
+  );
+  if (loadedThemeId !== latest) {
+    await reloadActiveTheme();
+  }
 }
 
 export async function reloadActiveTheme() {
