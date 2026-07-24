@@ -21,7 +21,7 @@ import {
 
 async function exists(filePath: string) {
   try {
-    await access(filePath, constants.F_OK);
+    await access(/* turbopackIgnore: true */ filePath, constants.F_OK);
     return true;
   } catch {
     return false;
@@ -79,7 +79,10 @@ export async function reloadEnabledPlugins() {
       });
       continue;
     }
-    const entryPath = path.join(baseDir, entryRel);
+    const entryPath = path.join(
+      /* turbopackIgnore: true */ baseDir,
+      entryRel,
+    );
     if (!(await exists(entryPath))) {
       await prisma.addonInstall.updateMany({
         where: { kind: "plugin", addonId: plugin.addonId },
@@ -89,9 +92,16 @@ export async function reloadEnabledPlugins() {
     }
 
     try {
-      const mod = await import(
-        /* webpackIgnore: true */ pathToFileURL(entryPath).href
-      );
+      // Runtime zip-drop entries — keep out of Turbopack NFT graph.
+      const href = pathToFileURL(entryPath).href;
+      const load = new Function(
+        "u",
+        "return import(u)",
+      ) as (u: string) => Promise<{
+        register?: (api: PluginApi) => void | Promise<void>;
+        default?: { register?: (api: PluginApi) => void | Promise<void> };
+      }>;
+      const mod = await load(href);
       const register = mod.register ?? mod.default?.register;
       if (typeof register !== "function") {
         throw new Error("Plugin entry must export register(api)");

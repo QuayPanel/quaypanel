@@ -65,10 +65,10 @@ export async function saveUploadedImageBytes(input: {
   }
 
   const ext = resolveImageExt(input.name, input.type);
-  const dir = path.join(process.cwd(), "public", "uploads");
-  await mkdir(dir, { recursive: true });
+  const dir = path.join(/* turbopackIgnore: true */ process.cwd(), "public", "uploads");
+  await mkdir(/* turbopackIgnore: true */ dir, { recursive: true });
   const filename = `${Date.now()}-${randomBytes(6).toString("hex")}.${ext}`;
-  await writeFile(path.join(dir, filename), input.bytes);
+  await writeFile(/* turbopackIgnore: true */ path.join(dir, filename), input.bytes);
   return `/uploads/${filename}`;
 }
 

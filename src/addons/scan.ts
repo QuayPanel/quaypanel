@@ -32,7 +32,7 @@ export type DiscoveredTheme = {
 
 async function exists(filePath: string) {
   try {
-    await access(filePath, constants.F_OK);
+    await access(/* turbopackIgnore: true */ filePath, constants.F_OK);
     return true;
   } catch {
     return false;
@@ -45,7 +45,9 @@ async function scanPluginDir(
 ): Promise<DiscoveredPlugin> {
   const manifestPath = path.join(dir, "addon.json");
   try {
-    const raw = JSON.parse(await readFile(manifestPath, "utf8"));
+    const raw = JSON.parse(
+      await readFile(/* turbopackIgnore: true */ manifestPath, "utf8"),
+    );
     const manifest = pluginManifestSchema.parse(raw);
     if (manifest.id !== folderName) {
       return {
@@ -81,7 +83,9 @@ async function scanThemeDir(
 ): Promise<DiscoveredTheme> {
   const manifestPath = path.join(dir, "theme.json");
   try {
-    const raw = JSON.parse(await readFile(manifestPath, "utf8"));
+    const raw = JSON.parse(
+      await readFile(/* turbopackIgnore: true */ manifestPath, "utf8"),
+    );
     const manifest = themeManifestSchema.parse(raw);
     if (manifest.id !== folderName) {
       return {
@@ -120,7 +124,9 @@ async function scanPluginRoot(root: string): Promise<DiscoveredPlugin[]> {
     return out;
   }
 
-  const entries = await readdir(root, { withFileTypes: true });
+  const entries = await readdir(/* turbopackIgnore: true */ root, {
+    withFileTypes: true,
+  });
   for (const entry of entries) {
     if (!entry.isDirectory()) continue;
     const dir = path.join(root, entry.name);
@@ -140,7 +146,9 @@ async function scanThemeRoot(root: string): Promise<DiscoveredTheme[]> {
     return out;
   }
 
-  const entries = await readdir(root, { withFileTypes: true });
+  const entries = await readdir(/* turbopackIgnore: true */ root, {
+    withFileTypes: true,
+  });
   for (const entry of entries) {
     if (!entry.isDirectory()) continue;
     const dir = path.join(root, entry.name);
@@ -201,7 +209,9 @@ export async function readThemeManifest(addonId: string) {
   ];
   for (const file of candidates) {
     if (!(await exists(file))) continue;
-    const raw = JSON.parse(await readFile(file, "utf8"));
+    const raw = JSON.parse(
+      await readFile(/* turbopackIgnore: true */ file, "utf8"),
+    );
     const manifest = themeManifestSchema.parse(raw);
     if (manifest.id === addonId || path.basename(path.dirname(file)) === addonId) {
       return manifest;
@@ -220,7 +230,9 @@ export async function readPluginManifest(addonId: string) {
   ];
   for (const file of candidates) {
     if (!(await exists(file))) continue;
-    const raw = JSON.parse(await readFile(file, "utf8"));
+    const raw = JSON.parse(
+      await readFile(/* turbopackIgnore: true */ file, "utf8"),
+    );
     const manifest = pluginManifestSchema.parse(raw);
     if (manifest.id === addonId || path.basename(path.dirname(file)) === addonId) {
       return manifest;

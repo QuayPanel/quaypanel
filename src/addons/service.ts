@@ -131,7 +131,11 @@ export async function setPluginEnabled(
   });
 
   // Best-effort hot reload
-  const { reloadEnabledPlugins } = await import("@/src/addons/plugin-loader");
+  const { reloadEnabledPlugins } = await import(
+    /* webpackIgnore: true */
+    /* turbopackIgnore: true */
+    "@/src/addons/plugin-loader"
+  );
   await reloadEnabledPlugins().catch(() => undefined);
 
   return row;
@@ -215,15 +219,27 @@ export async function activateTheme(addonId: string, actorId?: string) {
     entityId: addonId,
   });
 
-  const { reloadActiveTheme } = await import("@/src/addons/theme-runtime");
+  const { reloadActiveTheme } = await import(
+    /* webpackIgnore: true */
+    /* turbopackIgnore: true */
+    "@/src/addons/theme-runtime"
+  );
   await reloadActiveTheme().catch(() => undefined);
 
   return { ok: true, activeId: addonId };
 }
 
 export async function reloadAllAddons(actorId?: string) {
-  const { reloadEnabledPlugins } = await import("@/src/addons/plugin-loader");
-  const { reloadActiveTheme } = await import("@/src/addons/theme-runtime");
+  const { reloadEnabledPlugins } = await import(
+    /* webpackIgnore: true */
+    /* turbopackIgnore: true */
+    "@/src/addons/plugin-loader"
+  );
+  const { reloadActiveTheme } = await import(
+    /* webpackIgnore: true */
+    /* turbopackIgnore: true */
+    "@/src/addons/theme-runtime"
+  );
   await reloadEnabledPlugins();
   await reloadActiveTheme();
   await writeAuditLog({

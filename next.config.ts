@@ -9,6 +9,11 @@ const nextConfig: NextConfig = {
     "@prisma/client",
     "pg",
   ],
+  // Runtime zip-drop addons live on disk outside the JS bundle.
+  outputFileTracingIncludes: {
+    "/addons/**": ["./plugins/**/*", "./themes/**/*"],
+    "/api/v1/addons": ["./plugins/**/*", "./themes/**/*"],
+  },
   experimental: {
     // Allow logo/favicon/product uploads up to ~10MB (multipart overhead included)
     serverActions: {
@@ -17,7 +22,22 @@ const nextConfig: NextConfig = {
     proxyClientMaxBodySize: "10mb",
   },
   turbopack: {
-    root: process.cwd(),
+    // Intentional runtime FS under /plugins and /themes. Turbopack still flags
+    // next.config.ts when any traced route touches cwd-based path joins.
+    ignoreIssue: [
+      {
+        path: "**/next.config.*",
+        title: /Encountered unexpected file in NFT list/,
+      },
+      {
+        path: "**/src/addons/**",
+        title: /Encountered unexpected file in NFT list/,
+      },
+      {
+        path: "**/app/addons/**",
+        title: /Encountered unexpected file in NFT list/,
+      },
+    ],
   },
 };
 

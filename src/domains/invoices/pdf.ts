@@ -102,8 +102,14 @@ async function loadLogoBytes(logoUrl: string): Promise<Uint8Array | null> {
 
   try {
     if (raw.startsWith("/uploads/")) {
-      const filePath = path.join(process.cwd(), "public", raw.replace(/^\//, ""));
-      return new Uint8Array(await readFile(filePath));
+      const filePath = path.join(
+        /* turbopackIgnore: true */ process.cwd(),
+        "public",
+        raw.replace(/^\//, ""),
+      );
+      return new Uint8Array(
+        await readFile(/* turbopackIgnore: true */ filePath),
+      );
     }
     if (raw.startsWith("http://") || raw.startsWith("https://")) {
       const res = await fetch(raw);

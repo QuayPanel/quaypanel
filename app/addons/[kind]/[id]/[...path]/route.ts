@@ -1,7 +1,4 @@
-import { readFile, stat } from "fs/promises";
-import path from "path";
 import type { AddonKind } from "@/src/addons/paths";
-import { resolveDiscoveredAddonPath } from "@/src/addons/scan";
 
 type Params = { params: Promise<{ kind: string; id: string; path: string[] }> };
 
@@ -32,19 +29,27 @@ export async function GET(_request: Request, { params }: Params) {
     return new Response("Not found", { status: 404 });
   }
 
+  const { resolveDiscoveredAddonPath } = await import(
+    /* webpackIgnore: true */
+    /* turbopackIgnore: true */
+    "@/src/addons/scan"
+  );
+  const path = await import("path");
+  const { readFile, stat } = await import("fs/promises");
+
   const base = await resolveDiscoveredAddonPath(addonKind, id);
   if (!base) return new Response("Not found", { status: 404 });
 
-  const root = path.resolve(base);
-  const filePath = path.resolve(root, relative);
+  const root = path.resolve(/* turbopackIgnore: true */ base);
+  const filePath = path.resolve(/* turbopackIgnore: true */ root, relative);
   if (!filePath.startsWith(root + path.sep) && filePath !== root) {
     return new Response("Not found", { status: 404 });
   }
 
   try {
-    const info = await stat(filePath);
+    const info = await stat(/* turbopackIgnore: true */ filePath);
     if (!info.isFile()) return new Response("Not found", { status: 404 });
-    const bytes = await readFile(filePath);
+    const bytes = await readFile(/* turbopackIgnore: true */ filePath);
     const ext = path.extname(filePath).toLowerCase();
     return new Response(bytes, {
       headers: {

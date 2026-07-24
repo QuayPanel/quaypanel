@@ -10,11 +10,18 @@ export function addonDevPaths(): string[] {
     .split(path.delimiter)
     .map((p) => p.trim())
     .filter(Boolean)
-    .map((p) => path.resolve(p));
+    .map((p) => path.resolve(/* turbopackIgnore: true */ p));
 }
 
+/**
+ * Addon install roots under the project.
+ * `turbopackIgnore` prevents NFT from treating cwd as the whole project graph.
+ */
 export function addonsRoot(kind: AddonKind) {
-  return path.join(process.cwd(), kind === "plugin" ? "plugins" : "themes");
+  if (kind === "plugin") {
+    return path.join(/* turbopackIgnore: true */ process.cwd(), "plugins");
+  }
+  return path.join(/* turbopackIgnore: true */ process.cwd(), "themes");
 }
 
 export function addonDir(kind: AddonKind, addonId: string) {
@@ -23,8 +30,7 @@ export function addonDir(kind: AddonKind, addonId: string) {
 
 /** Resolve an addon directory, preferring cwd install then ADDON_DEV_PATH matches. */
 export function resolveAddonDir(kind: AddonKind, addonId: string) {
-  const primary = addonDir(kind, addonId);
-  return primary;
+  return addonDir(kind, addonId);
 }
 
 /** Safe join under an addon root; rejects path traversal. */
@@ -33,8 +39,8 @@ export function resolveAddonAsset(
   addonId: string,
   relativePath: string,
 ) {
-  const root = path.resolve(addonDir(kind, addonId));
-  const target = path.resolve(root, relativePath);
+  const root = path.resolve(/* turbopackIgnore: true */ addonDir(kind, addonId));
+  const target = path.resolve(/* turbopackIgnore: true */ root, relativePath);
   if (!target.startsWith(root + path.sep) && target !== root) {
     return null;
   }

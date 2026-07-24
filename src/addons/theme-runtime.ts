@@ -1,7 +1,3 @@
-import {
-  readThemeManifest,
-  resolveDiscoveredAddonPath,
-} from "@/src/addons/scan";
 import { getSetting } from "@/src/domains/settings/service";
 import { pathToFileURL } from "url";
 import path from "path";
@@ -59,7 +55,7 @@ function createThemeApi(themeId: string): ThemeApi {
 
 async function exists(filePath: string) {
   try {
-    await access(filePath, constants.F_OK);
+    await access(/* turbopackIgnore: true */ filePath, constants.F_OK);
     return true;
   } catch {
     return false;
@@ -94,6 +90,12 @@ export async function reloadActiveTheme() {
   activeCssHrefs = [];
   loadedThemeId = null;
 
+  const { readThemeManifest, resolveDiscoveredAddonPath } = await import(
+    /* webpackIgnore: true */
+    /* turbopackIgnore: true */
+    "@/src/addons/scan"
+  );
+
   const themeId = String(
     (await getSetting("theme.activeId", "default")) || "default",
   );
@@ -127,11 +129,19 @@ export async function reloadActiveTheme() {
   if (manifest.entry) {
     const baseDir = await resolveDiscoveredAddonPath("theme", themeId);
     const entryPath = baseDir
-      ? path.join(baseDir, manifest.entry)
+      ? path.join(/* turbopackIgnore: true */ baseDir, manifest.entry)
       : null;
     if (entryPath && (await exists(entryPath))) {
       try {
-        const mod = await import(/* webpackIgnore: true */ pathToFileURL(entryPath).href);
+        const href = pathToFileURL(entryPath).href;
+        const load = new Function(
+          "u",
+          "return import(u)",
+        ) as (u: string) => Promise<{
+          register?: (api: ThemeApi) => void | Promise<void>;
+          default?: { register?: (api: ThemeApi) => void | Promise<void> };
+        }>;
+        const mod = await load(href);
         const register = mod.register ?? mod.default?.register;
         if (typeof register === "function") {
           await register(createThemeApi(themeId));
