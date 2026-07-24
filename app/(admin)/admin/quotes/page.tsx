@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { PageMotion } from "@/components/motion";
@@ -18,6 +19,7 @@ import {
 } from "@/components/ui/table";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { formatMoney } from "@/src/core/utils";
 
 type Quote = {
@@ -36,6 +38,8 @@ export default function AdminQuotesPage() {
     ["quotes"],
     "/api/v1/quotes",
   );
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [pending, setPending] = useState<Quote | null>(null);
 
   const send = useMutation({
     mutationFn: (number: number) =>
@@ -52,6 +56,18 @@ export default function AdminQuotesPage() {
       apiFetch(`/api/v1/quotes/${number}/convert`, { method: "POST" }),
     onSuccess: () => {
       toast.success("Converted to invoice");
+      queryClient.invalidateQueries({ queryKey: ["quotes"] });
+    },
+    onError: (err: Error) => toast.error(err.message),
+  });
+
+  const remove = useMutation({
+    mutationFn: (quote: Quote) =>
+      apiFetch(`/api/v1/quotes/${quote.number}`, { method: "DELETE" }),
+    onSuccess: () => {
+      toast.success("Quote deleted");
+      setConfirmOpen(false);
+      setPending(null);
       queryClient.invalidateQueries({ queryKey: ["quotes"] });
     },
     onError: (err: Error) => toast.error(err.message),
@@ -105,7 +121,7 @@ export default function AdminQuotesPage() {
                     <TableCell>
                       {formatMoney(quote.total, quote.currency)}
                     </TableCell>
-                    <TableCell className="space-x-2 text-right">
+                    <TableCell className="space-x-2 text-right whitespace-nowrap">
                       {(quote.status === "DRAFT" || quote.status === "SENT") && (
                         <Button
                           size="sm"
@@ -124,6 +140,18 @@ export default function AdminQuotesPage() {
                           Convert
                         </Button>
                       )}
+                      {quote.status !== "CONVERTED" ? (
+                        <Button
+                          size="sm"
+                          variant="destructive"
+                          onClick={() => {
+                            setPending(quote);
+                            setConfirmOpen(true);
+                          }}
+                        >
+                          Delete
+                        </Button>
+                      ) : null}
                     </TableCell>
                   </TableRow>
                 ))}
@@ -132,6 +160,20 @@ export default function AdminQuotesPage() {
           </CardContent>
         </Card>
       )}
+
+      <ConfirmDialog
+        open={confirmOpen}
+        title="Delete quote?"
+        description={`Permanently delete quote #${pending?.number}? This cannot be undone.`}
+        onCancel={() => {
+          setConfirmOpen(false);
+          setPending(null);
+        }}
+        onConfirm={() => {
+          if (pending) remove.mutate(pending);
+        }}
+        loading={remove.isPending}
+      />
     </PageMotion>
   );
 }

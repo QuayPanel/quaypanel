@@ -21,6 +21,7 @@ import {
 } from "@/components/ui/table";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { formatMoney } from "@/src/core/utils";
 
 type Invoice = {
@@ -34,6 +35,10 @@ type Invoice = {
 };
 
 type Client = { id: string; name: string; email: string };
+
+function canDeleteInvoice(status: string) {
+  return status !== "PAID" && status !== "REFUNDED";
+}
 
 export default function AdminInvoicesPage() {
   const queryClient = useQueryClient();
@@ -50,6 +55,8 @@ export default function AdminInvoicesPage() {
   const [clientId, setClientId] = useState("");
   const [description, setDescription] = useState("");
   const [amount, setAmount] = useState("50");
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [pending, setPending] = useState<Invoice | null>(null);
 
   const create = useMutation({
     mutationFn: () =>
@@ -69,6 +76,22 @@ export default function AdminInvoicesPage() {
     onSuccess: () => {
       toast.success("Custom invoice created");
       setShowForm(false);
+      queryClient.invalidateQueries({ queryKey: ["invoices"] });
+    },
+    onError: (err: Error) => toast.error(err.message),
+  });
+
+  const remove = useMutation({
+    mutationFn: (invoice: Invoice) =>
+      apiFetch(`/api/v1/invoices/${encodeURIComponent(invoice.number)}`, {
+        method: "DELETE",
+      }),
+    onSuccess: (_data, invoice) => {
+      toast.success(
+        invoice.status === "VOID" ? "Invoice deleted" : "Invoice voided",
+      );
+      setConfirmOpen(false);
+      setPending(null);
       queryClient.invalidateQueries({ queryKey: ["invoices"] });
     },
     onError: (err: Error) => toast.error(err.message),
@@ -165,7 +188,7 @@ export default function AdminInvoicesPage() {
                     <TableCell>
                       {new Date(invoice.createdAt).toLocaleString()}
                     </TableCell>
-                    <TableCell className="space-x-2">
+                    <TableCell className="space-x-2 text-right whitespace-nowrap">
                       <Button asChild size="sm" variant="outline">
                         <Link
                           href={`/admin/invoices/${encodeURIComponent(invoice.number)}/pdf`}
@@ -178,6 +201,18 @@ export default function AdminInvoicesPage() {
                           Edit
                         </Link>
                       </Button>
+                      {canDeleteInvoice(invoice.status) ? (
+                        <Button
+                          size="sm"
+                          variant="destructive"
+                          onClick={() => {
+                            setPending(invoice);
+                            setConfirmOpen(true);
+                          }}
+                        >
+                          {invoice.status === "VOID" ? "Delete" : "Void"}
+                        </Button>
+                      ) : null}
                     </TableCell>
                   </TableRow>
                 ))}
@@ -186,6 +221,27 @@ export default function AdminInvoicesPage() {
           </CardContent>
         </Card>
       )}
+
+      <ConfirmDialog
+        open={confirmOpen}
+        title={
+          pending?.status === "VOID" ? "Delete invoice?" : "Void invoice?"
+        }
+        description={
+          pending?.status === "VOID"
+            ? `Permanently delete invoice ${pending.number}? This cannot be undone.`
+            : `Void invoice ${pending?.number}? You can permanently delete it afterward if it has no payments.`
+        }
+        confirmLabel={pending?.status === "VOID" ? "Delete" : "Void"}
+        onCancel={() => {
+          setConfirmOpen(false);
+          setPending(null);
+        }}
+        onConfirm={() => {
+          if (pending) remove.mutate(pending);
+        }}
+        loading={remove.isPending}
+      />
     </PageMotion>
   );
 }
